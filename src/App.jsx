@@ -111,13 +111,14 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{flex:1,maxWidth:'680px',background:'#fff',borderRight:'1px solid #eee',minHeight:'100vh'}}>
-        <div style={{padding:'20px 24px 16px',borderBottom:'1px solid #f0f0f0'}}>
+      {/* COLONNE CENTRALE — FIXÉE ET SCROLLABLE */}
+      <div style={{flex:1,maxWidth:'680px',background:'#fff',borderRight:'1px solid #eee',height:'100vh',display:'flex',flexDirection:'column'}}>
+        <div style={{padding:'20px 24px 16px',borderBottom:'1px solid #f0f0f0',flexShrink:0}}>
           <div style={{fontSize:'18px',fontWeight:'700',color:'#111'}}>
             {navItems.find(n => n.key === page)?.label}
           </div>
         </div>
-        <div style={{overflowY:'auto'}}>
+        <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
           {renderPage()}
         </div>
       </div>

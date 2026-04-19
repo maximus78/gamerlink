@@ -75,7 +75,7 @@ export default function App() {
     if (page === 'feed') return <Feed user={session.user} profile={profile} />
     if (page === 'status') return <Status user={session.user} profile={profile} />
     if (page === 'session') return <Session user={session.user} profile={profile} />
-    if (page === 'dec') return <Decouvrir />
+    if (page === 'dec') return <Decouvrir user={session.user} />
     if (page === 'recherche') return <Recherche user={session.user} />
   }
 

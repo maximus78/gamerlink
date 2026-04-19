@@ -70,6 +70,32 @@ export default function Status({ user, profile }) {
     alert(status === 'off' ? 'Statut effacé' : 'Statut activé !')
   }
 
+  const importFromSteam = async () => {
+    const steamId = prompt('Entre ton Steam ID (ex: 76561199027066116)\nTrouve-le sur steamcommunity.com/id/tonpseudo')
+    if (!steamId) return
+    try {
+      const res = await fetch(`/api/steam?steamid=${steamId}`)
+      const data = await res.json()
+      if (data.games && data.games.length > 0) {
+        for (const game of data.games.slice(0, 10)) {
+          await supabase.from('user_games').upsert({
+            user_id: user.id,
+            game_name: game.name,
+            platform: 'Steam',
+            hours_played: Math.floor(game.hours),
+            last_played: new Date().toISOString()
+          }, { onConflict: 'user_id,game_name' })
+        }
+        await fetchMyGames()
+        alert(`${Math.min(data.games.length, 10)} jeux importés depuis Steam !`)
+      } else {
+        alert('Aucun jeu trouvé — vérifie que ton profil Steam est public')
+      }
+    } catch(e) {
+      alert('Erreur : ' + e.message)
+    }
+  }
+
   const handleAddGame = async () => {
     if (!newGame.trim()) return
     await supabase.from('user_games').upsert({
@@ -165,10 +191,16 @@ export default function Status({ user, profile }) {
       <div style={{margin:'0 16px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden',marginBottom:'14px'}}>
         <div style={{padding:'10px 14px',background:'#fafaf9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Mes jeux</span>
-          <button onClick={() => setShowAddGame(!showAddGame)}
-            style={{fontSize:'11px',color:'#185FA5',fontWeight:'600',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit'}}>
-            {showAddGame ? 'Fermer' : '+ Ajouter'}
-          </button>
+          <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+            <button onClick={importFromSteam}
+              style={{fontSize:'11px',color:'#c7d5e0',background:'#1b2838',border:'none',padding:'3px 10px',borderRadius:'20px',cursor:'pointer',fontFamily:'inherit',fontWeight:'600'}}>
+              ⬇ Steam
+            </button>
+            <button onClick={() => setShowAddGame(!showAddGame)}
+              style={{fontSize:'11px',color:'#185FA5',fontWeight:'600',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit'}}>
+              {showAddGame ? 'Fermer' : '+ Ajouter'}
+            </button>
+          </div>
         </div>
 
         {showAddGame && (

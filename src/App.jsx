@@ -6,6 +6,7 @@ import Feed from './pages/Feed'
 import Status from './pages/Status'
 import Session from './pages/Session'
 import Decouvrir from './pages/Decouvrir'
+import Recherche from './pages/Recherche'
 import './App.css'
 
 export default function App() {
@@ -56,9 +57,15 @@ export default function App() {
     <div className="app">
       <div className="topbar">
         <span className="appname">GamerLink</span>
-        <span className="online">
-          {profile.name?.split(' ')[0] || 'Toi'}
-        </span>
+        <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+          <div onClick={() => setPage('recherche')}
+            style={{width:'32px',height:'32px',borderRadius:'50%',background: page==='recherche' ? '#111' : '#f0f0f0',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+            <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke={page==='recherche' ? '#fff' : '#888'} strokeWidth="1.5"/><line x1="10" y1="10" x2="14" y2="14" stroke={page==='recherche' ? '#fff' : '#888'} strokeWidth="1.5"/></svg>
+          </div>
+          <span style={{fontSize:'11px',color:'#27500A',background:'#EAF3DE',padding:'3px 10px',borderRadius:'20px',fontWeight:'600'}}>
+            {profile.name?.split(' ')[0] || 'Toi'}
+          </span>
+        </div>
       </div>
 
       <div className="nav">
@@ -73,26 +80,29 @@ export default function App() {
         {page==='status' && <Status user={session.user} profile={profile} />}
         {page==='session' && <Session user={session.user} profile={profile} />}
         {page==='dec' && <Decouvrir />}
+        {page==='recherche' && <Recherche user={session.user} />}
       </div>
 
-      <div className="tab-bar">
-        <div className={page==='feed'?'tab on':'tab'} onClick={()=>setPage('feed')}>
-          <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="7" r="3.5" fill="currentColor" opacity=".8"/><ellipse cx="9" cy="14.5" rx="6" ry="3" fill="currentColor" opacity=".5"/></svg>
-          <span>Qui joue</span>
+      {page !== 'recherche' && (
+        <div className="tab-bar">
+          <div className={page==='feed'?'tab on':'tab'} onClick={()=>setPage('feed')}>
+            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="7" r="3.5" fill="currentColor" opacity=".8"/><ellipse cx="9" cy="14.5" rx="6" ry="3" fill="currentColor" opacity=".5"/></svg>
+            <span>Qui joue</span>
+          </div>
+          <div className={page==='status'?'tab on':'tab'} onClick={()=>setPage('status')}>
+            <svg width="18" height="18" viewBox="0 0 18 18"><polygon points="4,3 14,9 4,15" fill="currentColor" opacity=".8"/></svg>
+            <span>Mon statut</span>
+          </div>
+          <div className={page==='session'?'tab on':'tab'} onClick={()=>setPage('session')}>
+            <svg width="18" height="18" viewBox="0 0 18 18"><rect x="3" y="4" width="12" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" opacity=".8"/></svg>
+            <span>Session</span>
+          </div>
+          <div className={page==='dec'?'tab on':'tab'} onClick={()=>setPage('dec')}>
+            <svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 2C9 2 14 6 14 10C14 13 11.5 15.5 9 15.5C6.5 15.5 4 13 4 10C4 6 9 2 9 2Z" fill="currentColor" opacity=".8"/></svg>
+            <span>Découvrir</span>
+          </div>
         </div>
-        <div className={page==='status'?'tab on':'tab'} onClick={()=>setPage('status')}>
-          <svg width="18" height="18" viewBox="0 0 18 18"><polygon points="4,3 14,9 4,15" fill="currentColor" opacity=".8"/></svg>
-          <span>Mon statut</span>
-        </div>
-        <div className={page==='session'?'tab on':'tab'} onClick={()=>setPage('session')}>
-          <svg width="18" height="18" viewBox="0 0 18 18"><rect x="3" y="4" width="12" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" opacity=".8"/></svg>
-          <span>Session</span>
-        </div>
-        <div className={page==='dec'?'tab on':'tab'} onClick={()=>setPage('dec')}>
-          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 2C9 2 14 6 14 10C14 13 11.5 15.5 9 15.5C6.5 15.5 4 13 4 10C4 6 9 2 9 2Z" fill="currentColor" opacity=".8"/></svg>
-          <span>Découvrir</span>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

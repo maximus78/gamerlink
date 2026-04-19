@@ -54,9 +54,7 @@ export default async function handler(req, res) {
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     )
     const text = await response.text()
-
-    // DEBUG — retourne les 2000 premiers caractères du XML brut
-    return res.status(200).json({ debug: text.slice(0, 2000) })
+    return res.status(200).json({ debug: text.slice(0, 3000) })
 
   } catch (e) {
     return res.status(500).json({ error: e.message })

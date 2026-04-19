@@ -46,9 +46,14 @@ export default function Decouvrir({ user }) {
   const getColor = (name) => ['#C0DD97','#CECBF6','#FAC775','#B5D4F4','#F5C4B3','#9FE1CB'][name ? name.charCodeAt(0)%6 : 0]
   const getTextColor = (name) => ['#27500A','#3C3489','#633806','#0C447C','#712B13','#085041'][name ? name.charCodeAt(0)%6 : 0]
 
-  const filtered = GAMES.filter(g =>
-    g.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = GAMES
+  .filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
+  .sort((a, b) => {
+    const potesA = getPotesForGame(a.name).length
+    const potesB = getPotesForGame(b.name).length
+    if (potesB !== potesA) return potesB - potesA
+    return b.phase - a.phase
+  })
 
   const openSteam = (gameId) => window.open(`https://store.steampowered.com/app/${gameId}/?utm_source=gamerlink`, '_blank')
   const openYoutube = (gameName) => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(gameName + ' gameplay 2026')}`, '_blank')

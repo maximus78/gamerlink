@@ -49,13 +49,28 @@ export default async function handler(req, res) {
   if (!steamid) return res.status(400).json({ error: 'steamid required' })
 
   try {
+    // API non-officielle Steam — pas besoin de clé
     const response = await fetch(
-      `https://steamcommunity.com/profiles/${steamid}/games/?tab=all&xml=1`,
+      `https://steamspy.com/api.php?request=playerdata&steamid=${steamid}`,
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     )
-    const text = await response.text()
-    return res.status(200).json({ debug: text.slice(0, 3000) })
+    const data = await response.json()
+    
+    if (!data || Object.keys(data).length === 0) {
+      return res.status(200).json({ error: 'private', games: [] })
+    }
 
+    const games = Object.values(data)
+      .filter(g => g.name)
+      .map(g => ({
+        name: g.name,
+        hours: Math.round((g.playtime_forever || 0) / 60),
+        appid: g.appid
+      }))
+      .sort((a, b) => b.hours - a.hours)
+      .slice(0, 20)
+
+    return res.status(200).json({ games })
   } catch (e) {
     return res.status(500).json({ error: e.message })
   }

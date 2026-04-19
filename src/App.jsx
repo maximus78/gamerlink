@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from './supabase'
+import Login from './pages/Login'
 import Feed from './pages/Feed'
 import Status from './pages/Status'
 import Session from './pages/Session'
@@ -6,13 +8,33 @@ import Decouvrir from './pages/Decouvrir'
 import './App.css'
 
 export default function App() {
+  const [session, setSession] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState('feed')
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setLoading(false)
+    })
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+  }, [])
+
+  if (loading) return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f0efe8'}}>
+      <div style={{fontSize:'24px',fontWeight:'700',color:'#111'}}>GamerLink</div>
+    </div>
+  )
+
+  if (!session) return <Login />
 
   return (
     <div className="app">
       <div className="topbar">
         <span className="appname">GamerLink</span>
-        <span className="online">4 en ligne</span>
+        <span className="online">En ligne</span>
       </div>
 
       <div className="nav">

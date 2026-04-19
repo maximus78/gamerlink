@@ -115,8 +115,8 @@ export default function Feed({ user, profile }) {
     return tags
   }
 
-  if (selectedPote) return <ProfilPote poteId={selectedPote} onBack={() => setSelectedPote(null)} user={user} />
-  if (selectedContact) return <ProfilPote poteContact={selectedContact} onBack={() => setSelectedContact(null)} user={user} />
+  if (selectedPote) return <ProfilPote poteId={selectedPote} onBack={() => { setSelectedPote(null); fetchContacts(); fetchStatuses(); }} user={user} />
+  if (selectedContact) return <ProfilPote poteContact={selectedContact} onBack={() => { setSelectedContact(null); fetchContacts(); fetchStatuses(); }} user={user} />
   if (loading) return <div style={{padding:'40px 16px',textAlign:'center',color:'#bbb',fontSize:'13px'}}>Chargement...</div>
 
   return (

@@ -76,6 +76,10 @@ export default function Status({ user, profile }) {
     try {
       const res = await fetch(`/api/steam?steamid=${steamId}`)
       const data = await res.json()
+      if (data.error === 'private') {
+        alert('Profil Steam privé — va dans Paramètres Steam → Confidentialité → Détails du jeu → Public')
+        return
+      }
       if (data.games && data.games.length > 0) {
         for (const game of data.games.slice(0, 10)) {
           await supabase.from('user_games').upsert({
@@ -189,15 +193,15 @@ export default function Status({ user, profile }) {
       </button>
 
       <div style={{margin:'0 16px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden',marginBottom:'14px'}}>
-        <div style={{padding:'10px 14px',background:'#fafaf9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{padding:'10px 14px',background:'#fafaf9',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'6px'}}>
           <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Mes jeux</span>
-          <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+          <div style={{display:'flex',gap:'6px',alignItems:'center',flexShrink:0}}>
             <button onClick={importFromSteam}
-              style={{fontSize:'11px',color:'#c7d5e0',background:'#1b2838',border:'none',padding:'3px 10px',borderRadius:'20px',cursor:'pointer',fontFamily:'inherit',fontWeight:'600'}}>
+              style={{fontSize:'11px',color:'#c7d5e0',background:'#1b2838',border:'none',padding:'3px 8px',borderRadius:'20px',cursor:'pointer',fontFamily:'inherit',fontWeight:'600',whiteSpace:'nowrap'}}>
               ⬇ Steam
             </button>
             <button onClick={() => setShowAddGame(!showAddGame)}
-              style={{fontSize:'11px',color:'#185FA5',fontWeight:'600',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit'}}>
+              style={{fontSize:'11px',color:'#185FA5',fontWeight:'600',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}}>
               {showAddGame ? 'Fermer' : '+ Ajouter'}
             </button>
           </div>

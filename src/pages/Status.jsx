@@ -71,34 +71,58 @@ export default function Status({ user, profile }) {
   }
 
   const importFromSteam = async () => {
-    const steamId = prompt('Entre ton Steam ID (ex: 76561199027066116)\nTrouve-le sur steamcommunity.com/id/tonpseudo')
-    if (!steamId) return
-    try {
-      const res = await fetch(`/api/steam?steamid=${steamId}`)
-      const data = await res.json()
-      if (data.error === 'private') {
-        alert('Profil Steam privé — va dans Paramètres Steam → Confidentialité → Détails du jeu → Public')
-        return
-      }
-      if (data.games && data.games.length > 0) {
-        for (const game of data.games.slice(0, 10)) {
-          await supabase.from('user_games').upsert({
-            user_id: user.id,
-            game_name: game.name,
-            platform: 'Steam',
-            hours_played: Math.floor(game.hours),
-            last_played: new Date().toISOString()
-          }, { onConflict: 'user_id,game_name' })
-        }
-        await fetchMyGames()
-        alert(`${Math.min(data.games.length, 10)} jeux importés depuis Steam !`)
-      } else {
-        alert('Aucun jeu trouvé — vérifie que ton profil Steam est public')
-      }
-    } catch(e) {
-      alert('Erreur : ' + e.message)
+  const steamId = prompt('Entre ton Steam ID (ex: 76561199027066116)\nTrouve-le sur steamcommunity.com/id/tonpseudo')
+  if (!steamId) return
+  try {
+    // Fetch direct depuis le navigateur — contourne le blocage serveur
+    const res = await fetch(
+      `https://steamcommunity.com/profiles/${steamId}/games/?tab=all&xml=1`
+    )
+    const text = await res.text()
+
+    if (text.includes('privacyMessage') || text.includes('This profile is private')) {
+      alert('Profil Steam privé — va dans Paramètres Steam → Confidentialité → Détails du jeu → Public')
+      return
     }
+
+    const games = []
+    const gameBlockRegex = /<game>([\s\S]*?)<\/game>/g
+    let block
+    while ((block = gameBlockRegex.exec(text)) !== null) {
+      const content = block[1]
+      const nameMatch = content.match(/<name><!\[CDATA\[([^\]]+)\]\]><\/name>/)
+      if (!nameMatch) continue
+      const name = nameMatch[1].trim()
+      const hoursMatch = content.match(/<hoursOnRecord>([^<]+)<\/hoursOnRecord>/)
+      const hours = hoursMatch ? parseFloat(hoursMatch[1].replace(',', '.')) || 0 : 0
+      const appidMatch = content.match(/<appID>(\d+)<\/appID>/)
+      const appid = appidMatch ? appidMatch[1] : null
+      games.push({ name, hours, appid })
+    }
+
+    games.sort((a, b) => b.hours - a.hours)
+    const top = games.slice(0, 10)
+
+    if (top.length === 0) {
+      alert('Aucun jeu trouvé — vérifie que ton profil Steam est public')
+      return
+    }
+
+    for (const game of top) {
+      await supabase.from('user_games').upsert({
+        user_id: user.id,
+        game_name: game.name,
+        platform: 'Steam',
+        hours_played: Math.floor(game.hours),
+        last_played: new Date().toISOString()
+      }, { onConflict: 'user_id,game_name' })
+    }
+    await fetchMyGames()
+    alert(`${top.length} jeux importés depuis Steam !`)
+  } catch(e) {
+    alert('Erreur : ' + e.message)
   }
+}
 
   const handleAddGame = async () => {
     if (!newGame.trim()) return

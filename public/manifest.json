@@ -1,0 +1,18 @@
+{
+  "name": "GamerLink",
+  "short_name": "GamerLink",
+  "description": "Retrouve tes potes gamers et rejoins leurs sessions en temps réel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0efe8",
+  "theme_color": "#111111",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../supabase'
 
-export default function Status() {
-  const [status, setStatus] = useState('hot')
+export default function Status({ user, profile }) {
+  const [status, setStatus] = useState('off')
   const [game, setGame] = useState('wz')
   const [dur, setDur] = useState('2h')
+  const [loading, setLoading] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState(null)
 
   const games = {
     wz: { name: 'Warzone', bg: '#1a1a2e' },
@@ -11,16 +14,58 @@ export default function Status() {
     rl: { name: 'Rocket League', bg: '#0d1b2a' }
   }
 
+  const durations = { '1h': 1, '2h': 2, '3h': 3, 'Soirée': 6 }
+
+  useEffect(() => {
+    fetchCurrentStatus()
+  }, [])
+
+  const fetchCurrentStatus = async () => {
+    const { data } = await supabase
+      .from('statuses')
+      .select('*')
+      .eq('user_id', user.id)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    if (data) {
+      setCurrentStatus(data)
+      setStatus(data.type)
+      setGame(Object.keys(games).find(k => games[k].name === data.game) || 'wz')
+    }
+  }
+
+  const handleBroadcast = async () => {
+    setLoading(true)
+    await supabase.from('statuses').delete().eq('user_id', user.id)
+    if (status !== 'off') {
+      const expiresAt = new Date()
+      expiresAt.setHours(expiresAt.getHours() + durations[dur])
+      await supabase.from('statuses').insert({
+        user_id: user.id,
+        type: status,
+        game: games[game].name,
+        expires_at: expiresAt.toISOString()
+      })
+    }
+    await fetchCurrentStatus()
+    setLoading(false)
+    alert(status === 'off' ? 'Statut effacé' : `Statut "${games[game].name}" activé pour ${dur} !`)
+  }
+
   return (
     <div>
       <div style={{margin:'12px 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
         <div style={{padding:'11px 14px',background:'#fafaf9',display:'flex',alignItems:'center',gap:'10px'}}>
-          <div style={{width:'38px',height:'38px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',fontWeight:'700',color:'#27500A'}}>TO</div>
+          <div style={{width:'38px',height:'38px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',fontWeight:'700',color:'#27500A'}}>
+            {profile?.name?.charAt(0) || 'T'}
+          </div>
           <div>
-            <div style={{fontSize:'14px',fontWeight:'600',color:'#111'}}>Ton statut actuel</div>
+            <div style={{fontSize:'14px',fontWeight:'600',color:'#111'}}>{profile?.name?.split(' ')[0] || 'Toi'}</div>
             <div style={{fontSize:'11px',color:'#888',marginTop:'2px',display:'flex',alignItems:'center',gap:'4px'}}>
-              <span style={{width:'7px',height:'7px',borderRadius:'50%',background:'#ccc',display:'inline-block'}}></span>
-              Pas dispo
+              <span style={{width:'7px',height:'7px',borderRadius:'50%',background: currentStatus ? '#639922' : '#ccc',display:'inline-block'}}></span>
+              {currentStatus ? `${currentStatus.game} · actif` : 'Pas dispo'}
             </div>
           </div>
         </div>
@@ -31,13 +76,8 @@ export default function Status() {
             { key:'hot', label:'Chaud pour jouer', color:'#FCEBEB', icon:'🔥' },
             { key:'off', label:'Pas dispo', color:'#f5f5f5', icon:'✕' }
           ].map(s => (
-            <div key={s.key}
-              onClick={() => setStatus(s.key)}
-              style={{
-                padding:'12px 4px',display:'flex',flexDirection:'column',alignItems:'center',gap:'5px',
-                cursor:'pointer',borderRight:'1px solid #eee',borderTop:'1px solid #eee',
-                background: status === s.key ? '#f0f9f0' : '#fff'
-              }}>
+            <div key={s.key} onClick={() => setStatus(s.key)}
+              style={{padding:'12px 4px',display:'flex',flexDirection:'column',alignItems:'center',gap:'5px',cursor:'pointer',borderRight:'1px solid #eee',borderTop:'1px solid #eee',background: status === s.key ? '#f0f9f0' : '#fff'}}>
               <div style={{width:'30px',height:'30px',borderRadius:'50%',background:s.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px'}}>{s.icon}</div>
               <span style={{fontSize:'10px',fontWeight:'600',color: status === s.key ? '#111' : '#bbb',textAlign:'center',lineHeight:'1.3'}}>{s.label}</span>
             </div>
@@ -79,11 +119,12 @@ export default function Status() {
         </div>
       </div>
 
-      <button style={{margin:'0 16px 4px',width:'calc(100% - 32px)',padding:'13px',borderRadius:'12px',background:'#111',color:'#fff',border:'none',fontSize:'13px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
+      <button onClick={handleBroadcast} disabled={loading}
+        style={{margin:'0 16px 4px',width:'calc(100% - 32px)',padding:'13px',borderRadius:'12px',background:'#111',color:'#fff',border:'none',fontSize:'13px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',opacity: loading ? 0.7 : 1}}>
         <svg width="16" height="16" viewBox="0 0 16 16"><polygon points="2,4 10,8 2,12" fill="#fff"/><line x1="12" y1="4" x2="12" y2="12" stroke="#fff" strokeWidth="1.5"/></svg>
-        Je joue à {games[game].name} — qui vient ?
+        {loading ? 'Envoi...' : `Je joue à ${games[game].name} — qui vient ?`}
       </button>
-      <div className="hint">Paul, Maxime et Jules seront notifiés. Statut actif {dur} puis effacé automatiquement.</div>
+      <div className="hint">Statut actif {dur} puis effacé automatiquement.</div>
     </div>
   )
 }

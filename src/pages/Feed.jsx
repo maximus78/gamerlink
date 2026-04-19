@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import ProfilPote from './ProfilPote'
 
 export default function Feed({ user, profile }) {
   const [statuses, setStatuses] = useState([])
@@ -9,6 +10,8 @@ export default function Feed({ user, profile }) {
   const [inviteLink, setInviteLink] = useState('')
   const [contactName, setContactName] = useState('')
   const [showInvite, setShowInvite] = useState(false)
+  const [selectedPote, setSelectedPote] = useState(null)
+  const [selectedContact, setSelectedContact] = useState(null)
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
   const myName = profile?.name?.split(' ')[0] || 'Ton pote'
@@ -85,6 +88,20 @@ export default function Feed({ user, profile }) {
     return tags
   }
 
+  if (selectedPote) return (
+    <ProfilPote
+      poteId={selectedPote}
+      onBack={() => setSelectedPote(null)}
+    />
+  )
+
+  if (selectedContact) return (
+    <ProfilPote
+      poteContact={selectedContact}
+      onBack={() => setSelectedContact(null)}
+    />
+  )
+
   if (loading) return <div style={{padding:'40px 16px',textAlign:'center',color:'#bbb',fontSize:'13px'}}>Chargement...</div>
 
   return (
@@ -107,7 +124,8 @@ export default function Feed({ user, profile }) {
                 const pill = getPill(s.type)
                 const isMe = s.user_id === user?.id
                 return (
-                  <div key={s.id} className="frow">
+                  <div key={s.id} className="frow" onClick={() => !isMe && setSelectedPote(s.user_id)}
+                    style={{cursor: isMe ? 'default' : 'pointer'}}>
                     <div className="av-wrap">
                       <div className="av" style={{background:getColor(name),color:getTextColor(name)}}>{getInitials(name)}</div>
                       <span className="fdot" style={{background:getDot(s.type)}}></span>
@@ -134,7 +152,8 @@ export default function Feed({ user, profile }) {
                 Potes sans l'app
               </div>
               {contacts.map(c => (
-                <div key={c.id} className="frow" style={{opacity:0.85}}>
+                <div key={c.id} className="frow" onClick={() => setSelectedContact(c)}
+                  style={{cursor:'pointer',opacity:0.85}}>
                   <div className="av-wrap">
                     <div className="av" style={{background:getColor(c.contact_name),color:getTextColor(c.contact_name),border:'1.5px dashed #ddd'}}>
                       {getInitials(c.contact_name)}
@@ -143,16 +162,15 @@ export default function Feed({ user, profile }) {
                   <div className="fi">
                     <div className="fn" style={{color:'#888'}}>{c.contact_name}</div>
                     <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginTop:'4px'}}>
-                      {getPlatformTags(c).map((t,i) => (
+                      {getPlatformTags(c).slice(0,2).map((t,i) => (
                         <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'0',border:`1px solid ${t.border}`,borderRadius:'6px',overflow:'hidden'}}>
-                          <span style={{fontSize:'9px',fontWeight:'700',padding:'2px 5px',background:t.bg,color:t.color,letterSpacing:'.03em'}}>
-                            {t.plt}
-                          </span>
-                          <span style={{fontSize:'10px',fontWeight:'500',padding:'2px 6px 2px 4px',color:'#444'}}>
-                            {t.label}
-                          </span>
+                          <span style={{fontSize:'9px',fontWeight:'700',padding:'2px 5px',background:t.bg,color:t.color,letterSpacing:'.03em'}}>{t.plt}</span>
+                          <span style={{fontSize:'10px',fontWeight:'500',padding:'2px 6px 2px 4px',color:'#444'}}>{t.label}</span>
                         </div>
                       ))}
+                      {getPlatformTags(c).length > 2 && (
+                        <span style={{fontSize:'10px',color:'#aaa',padding:'2px 4px'}}>+{getPlatformTags(c).length - 2}</span>
+                      )}
                     </div>
                   </div>
                   <span style={{fontSize:'10px',color:'#bbb',padding:'2px 7px',borderRadius:'20px',border:'1px dashed #ddd',whiteSpace:'nowrap',flexShrink:0}}>

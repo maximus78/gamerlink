@@ -19,11 +19,21 @@ export default function Feed({ user }) {
   }, [])
 
   const fetchStatuses = async () => {
+    const { data: friends } = await supabase
+      .from('friends')
+      .select('friend_id')
+      .eq('user_id', user.id)
+
+    const friendIds = (friends || []).map(f => f.friend_id)
+    friendIds.push(user.id)
+
     const { data } = await supabase
       .from('statuses')
       .select('*, profiles(name, phone)')
       .gt('expires_at', new Date().toISOString())
+      .in('user_id', friendIds)
       .order('created_at', { ascending: false })
+
     setStatuses(data || [])
     setLoading(false)
   }
@@ -35,14 +45,12 @@ export default function Feed({ user }) {
 
   const getColor = (name) => {
     const colors = ['#C0DD97','#CECBF6','#FAC775','#B5D4F4','#F5C4B3','#9FE1CB']
-    const index = name ? name.charCodeAt(0) % colors.length : 0
-    return colors[index]
+    return colors[name ? name.charCodeAt(0) % colors.length : 0]
   }
 
   const getTextColor = (name) => {
     const colors = ['#27500A','#3C3489','#633806','#0C447C','#712B13','#085041']
-    const index = name ? name.charCodeAt(0) % colors.length : 0
-    return colors[index]
+    return colors[name ? name.charCodeAt(0) % colors.length : 0]
   }
 
   const getPill = (type) => {
@@ -68,8 +76,12 @@ export default function Feed({ user }) {
       {statuses.length === 0 ? (
         <div style={{padding:'40px 16px',textAlign:'center'}}>
           <div style={{fontSize:'32px',marginBottom:'12px'}}>🎮</div>
-          <div style={{fontSize:'14px',fontWeight:'600',color:'#111',marginBottom:'8px'}}>Personne n'est en ligne</div>
-          <div style={{fontSize:'12px',color:'#aaa',lineHeight:'1.5'}}>Mets ton statut pour que tes potes te voient, ou invite-les à rejoindre GamerLink.</div>
+          <div style={{fontSize:'14px',fontWeight:'600',color:'#111',marginBottom:'8px'}}>
+            Personne n'est en ligne
+          </div>
+          <div style={{fontSize:'12px',color:'#aaa',lineHeight:'1.5',marginBottom:'16px'}}>
+            Mets ton statut ou invite des potes via la loupe en haut à droite.
+          </div>
         </div>
       ) : (
         <>
@@ -97,7 +109,9 @@ export default function Feed({ user }) {
                     <span className="game-row-txt">{s.game}</span>
                   </div>
                 </div>
-                <span className="pill" style={{background: pill.bg, color: pill.color}}>{pill.label}</span>
+                <span className="pill" style={{background: pill.bg, color: pill.color}}>
+                  {pill.label}
+                </span>
               </div>
             )
           })}
@@ -109,7 +123,7 @@ export default function Feed({ user }) {
           Inviter des potes
         </div>
         <div style={{padding:'10px 12px',fontSize:'12px',color:'#aaa',lineHeight:'1.5'}}>
-          Partage ce lien à tes potes pour qu'ils rejoignent GamerLink et apparaissent dans ton feed.
+          Partage ce lien à tes potes pour qu'ils rejoignent GamerLink.
         </div>
         <button
           onClick={() => {

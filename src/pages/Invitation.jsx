@@ -21,7 +21,7 @@ export default function Invitation() {
   const fetchInvitation = async () => {
     const { data } = await supabase
       .from('invitations')
-      .select('*, profiles(name)')
+      .select('*, profiles(id, name)')
       .eq('token', token)
       .single()
     setInvitation(data)
@@ -36,17 +36,27 @@ export default function Invitation() {
   const handleSave = async () => {
     if (!steam && !xbox && !discord && !psn && !epic) return
     setLoading(true)
-    await supabase
-      .from('invitations')
-      .update({
-        steam_tag: steam,
-        xbox_tag: xbox,
-        discord_tag: discord,
-        psn_tag: psn,
-        epic_tag: epic,
-        completed: true
-      })
-      .eq('token', token)
+
+    await supabase.from('invitations').update({
+      steam_tag: steam,
+      xbox_tag: xbox,
+      discord_tag: discord,
+      psn_tag: psn,
+      epic_tag: epic,
+      completed: true
+    }).eq('token', token)
+
+    await supabase.from('contact_gamertags').upsert({
+      owner_id: invitation.profiles.id,
+      contact_name: invitation.contact_name,
+      steam_tag: steam,
+      xbox_tag: xbox,
+      psn_tag: psn,
+      epic_tag: epic,
+      discord_tag: discord,
+      invitation_token: token
+    }, { onConflict: 'invitation_token' })
+
     setSaved(true)
     setLoading(false)
   }
@@ -74,13 +84,12 @@ export default function Invitation() {
         <div style={{fontSize:'48px',marginBottom:'16px'}}>🎮</div>
         <div style={{fontSize:'20px',fontWeight:'700',color:'#111',marginBottom:'8px'}}>C'est enregistré !</div>
         <div style={{fontSize:'13px',color:'#888',lineHeight:'1.5'}}>
-          {invitation.profiles?.name?.split(' ')[0]} peut maintenant te voir dans GamerLink.
+          {invitation.profiles?.name?.split(' ')[0]} peut maintenant voir tes gamertags dans GamerLink.
         </div>
         <div style={{marginTop:'20px',padding:'12px',background:'#EAF3DE',borderRadius:'12px',fontSize:'12px',color:'#27500A',fontWeight:'500'}}>
           Tu veux voir à quoi jouent tes potes aussi ? Rejoins GamerLink gratuitement.
         </div>
-        <button
-          onClick={() => window.location.href = window.location.origin}
+        <button onClick={() => window.location.href = window.location.origin}
           style={{width:'100%',marginTop:'12px',padding:'13px',borderRadius:'12px',background:'#111',color:'#fff',border:'none',fontSize:'13px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'}}>
           Rejoindre GamerLink →
         </button>
@@ -89,7 +98,7 @@ export default function Invitation() {
   )
 
   const fields = [
-    { label:'Pseudo Steam', placeholder:'ex: MonPseudo42', value:steam, set:setSteam, bg:'#1b2838', required:false,
+    { label:'Pseudo Steam', placeholder:'ex: MonPseudo42', value:steam, set:setSteam, bg:'#1b2838',
       icon:<svg width="11" height="11" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="4.5" fill="none" stroke="#c7d5e0" strokeWidth="1"/><circle cx="7.5" cy="5" r="1.5" fill="#c7d5e0"/></svg> },
     { label:'Xbox Gamertag', placeholder:'ex: MonGamerTag', value:xbox, set:setXbox, bg:'#107c10', optional:true,
       icon:<svg width="11" height="11" viewBox="0 0 11 11"><rect x="1" y="3" width="4" height="5" rx="1" fill="#fff" opacity=".8"/><rect x="6" y="3" width="4" height="5" rx="1" fill="#fff" opacity=".5"/></svg> },

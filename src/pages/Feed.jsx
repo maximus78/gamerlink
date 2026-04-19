@@ -77,11 +77,11 @@ export default function Feed({ user, profile }) {
 
   const getPlatformTags = (c) => {
     const tags = []
-    if (c.steam_tag) tags.push({label: c.steam_tag, bg:'#1b2838', color:'#c7d5e0'})
-    if (c.xbox_tag) tags.push({label: c.xbox_tag, bg:'#107c10', color:'#fff'})
-    if (c.psn_tag) tags.push({label: c.psn_tag, bg:'#003087', color:'#fff'})
-    if (c.epic_tag) tags.push({label: c.epic_tag, bg:'#2d2d2d', color:'#fff'})
-    if (c.discord_tag) tags.push({label: c.discord_tag, bg:'#5865F2', color:'#fff'})
+    if (c.steam_tag) tags.push({ label: c.steam_tag, plt:'Steam', bg:'#1b2838', color:'#c7d5e0', border:'#4a90d9' })
+    if (c.xbox_tag) tags.push({ label: c.xbox_tag, plt:'Xbox', bg:'#107c10', color:'#fff', border:'#5dc85d' })
+    if (c.psn_tag) tags.push({ label: c.psn_tag, plt:'PS', bg:'#003087', color:'#fff', border:'#4a6fc4' })
+    if (c.epic_tag) tags.push({ label: c.epic_tag, plt:'Epic', bg:'#2d2d2d', color:'#fff', border:'#888' })
+    if (c.discord_tag) tags.push({ label: c.discord_tag, plt:'Discord', bg:'#5865F2', color:'#fff', border:'#7983f5' })
     return tags
   }
 
@@ -134,7 +134,7 @@ export default function Feed({ user, profile }) {
                 Potes sans l'app
               </div>
               {contacts.map(c => (
-                <div key={c.id} className="frow" style={{opacity:0.8}}>
+                <div key={c.id} className="frow" style={{opacity:0.85}}>
                   <div className="av-wrap">
                     <div className="av" style={{background:getColor(c.contact_name),color:getTextColor(c.contact_name),border:'1.5px dashed #ddd'}}>
                       {getInitials(c.contact_name)}
@@ -142,15 +142,20 @@ export default function Feed({ user, profile }) {
                   </div>
                   <div className="fi">
                     <div className="fn" style={{color:'#888'}}>{c.contact_name}</div>
-                    <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginTop:'3px'}}>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginTop:'4px'}}>
                       {getPlatformTags(c).map((t,i) => (
-                        <span key={i} style={{fontSize:'10px',padding:'1px 6px',borderRadius:'4px',background:t.bg,color:t.color,fontWeight:'500'}}>
-                          {t.label}
-                        </span>
+                        <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'0',border:`1px solid ${t.border}`,borderRadius:'6px',overflow:'hidden'}}>
+                          <span style={{fontSize:'9px',fontWeight:'700',padding:'2px 5px',background:t.bg,color:t.color,letterSpacing:'.03em'}}>
+                            {t.plt}
+                          </span>
+                          <span style={{fontSize:'10px',fontWeight:'500',padding:'2px 6px 2px 4px',color:'#444'}}>
+                            {t.label}
+                          </span>
+                        </div>
                       ))}
                     </div>
                   </div>
-                  <span style={{fontSize:'10px',color:'#bbb',padding:'2px 7px',borderRadius:'20px',border:'1px dashed #ddd',whiteSpace:'nowrap'}}>
+                  <span style={{fontSize:'10px',color:'#bbb',padding:'2px 7px',borderRadius:'20px',border:'1px dashed #ddd',whiteSpace:'nowrap',flexShrink:0}}>
                     Sans app
                   </span>
                 </div>

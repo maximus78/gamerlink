@@ -30,10 +30,18 @@ export default function Status({ user, profile }) {
 
   const fetchCurrentStatus = async () => {
     const { data } = await supabase
-      .from('statuses').select('*').eq('user_id', user.id)
+      .from('statuses')
+      .select('*')
+      .eq('user_id', user.id)
       .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false }).limit(1).single()
-    if (data) { setCurrentStatus(data); setStatus(data.type) }
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (data && data.length > 0) {
+      setCurrentStatus(data[0])
+      setStatus(data[0].type)
+    } else {
+      setCurrentStatus(null)
+    }
   }
 
   const fetchMyGames = async () => {
@@ -98,7 +106,7 @@ export default function Status({ user, profile }) {
           <div>
             <div style={{fontSize:'14px',fontWeight:'600',color:'#111'}}>{profile?.name?.split(' ')[0] || 'Toi'}</div>
             <div style={{fontSize:'11px',color:'#888',marginTop:'2px',display:'flex',alignItems:'center',gap:'4px'}}>
-              <span style={{width:'7px',height:'7px',borderRadius:'50%',background: currentStatus ? '#639922' : '#ccc',display:'inline-block'}}></span>
+              <span style={{width:'7px',height:'7px',borderRadius:'50%',background:currentStatus?'#639922':'#ccc',display:'inline-block'}}></span>
               {currentStatus ? `${currentStatus.game} · actif` : 'Pas dispo'}
             </div>
           </div>
@@ -111,9 +119,9 @@ export default function Status({ user, profile }) {
             { key:'off', label:'Pas dispo', color:'#f5f5f5', icon:'✕' }
           ].map(s => (
             <div key={s.key} onClick={() => setStatus(s.key)}
-              style={{padding:'12px 4px',display:'flex',flexDirection:'column',alignItems:'center',gap:'5px',cursor:'pointer',borderRight:'1px solid #eee',borderTop:'1px solid #eee',background: status===s.key ? '#f0f9f0' : '#fff'}}>
+              style={{padding:'12px 4px',display:'flex',flexDirection:'column',alignItems:'center',gap:'5px',cursor:'pointer',borderRight:'1px solid #eee',borderTop:'1px solid #eee',background:status===s.key?'#f0f9f0':'#fff'}}>
               <div style={{width:'30px',height:'30px',borderRadius:'50%',background:s.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px'}}>{s.icon}</div>
-              <span style={{fontSize:'10px',fontWeight:'600',color: status===s.key ? '#111' : '#bbb',textAlign:'center',lineHeight:'1.3'}}>{s.label}</span>
+              <span style={{fontSize:'10px',fontWeight:'600',color:status===s.key?'#111':'#bbb',textAlign:'center',lineHeight:'1.3'}}>{s.label}</span>
             </div>
           ))}
         </div>
@@ -123,7 +131,7 @@ export default function Status({ user, profile }) {
         <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Quel jeu ce soir ?</div>
         {predefinedGames.map(g => (
           <div key={g.key} onClick={() => setGame(g.key)}
-            style={{display:'flex',alignItems:'center',gap:'10px',padding:'9px 14px',borderTop:'1px solid #f0f0f0',cursor:'pointer',background: game===g.key ? '#f0f9f0' : '#fff'}}>
+            style={{display:'flex',alignItems:'center',gap:'10px',padding:'9px 14px',borderTop:'1px solid #f0f0f0',cursor:'pointer',background:game===g.key?'#f0f9f0':'#fff'}}>
             <div style={{width:'36px',height:'36px',borderRadius:'9px',background:g.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
               <svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="8" width="14" height="2.5" fill="#e63946" rx="1.2"/><rect x="7.75" y="2" width="2.5" height="14" fill="#e63946" rx="1.2"/></svg>
             </div>
@@ -141,7 +149,7 @@ export default function Status({ user, profile }) {
           {['1h','2h','3h','Soirée'].map(d => (
             <button key={d} onClick={() => setDur(d)}
               style={{fontSize:'10px',padding:'4px 9px',borderRadius:'20px',border:'1px solid',cursor:'pointer',fontFamily:'inherit',
-                borderColor: dur===d ? '#111' : '#eee', background: dur===d ? '#111' : '#fff', color: dur===d ? '#fff' : '#aaa'}}>
+                borderColor:dur===d?'#111':'#eee',background:dur===d?'#111':'#fff',color:dur===d?'#fff':'#aaa'}}>
               {d}
             </button>
           ))}
@@ -151,7 +159,7 @@ export default function Status({ user, profile }) {
       <button onClick={handleBroadcast} disabled={loading}
         style={{margin:'0 16px 14px',width:'calc(100% - 32px)',padding:'13px',borderRadius:'12px',background:'#111',color:'#fff',border:'none',fontSize:'13px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',opacity:loading?0.7:1}}>
         <svg width="16" height="16" viewBox="0 0 16 16"><polygon points="2,4 10,8 2,12" fill="#fff"/><line x1="12" y1="4" x2="12" y2="12" stroke="#fff" strokeWidth="1.5"/></svg>
-        {loading ? 'Envoi...' : `Je joue — qui vient ?`}
+        {loading ? 'Envoi...' : 'Je joue — qui vient ?'}
       </button>
 
       <div style={{margin:'0 16px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden',marginBottom:'14px'}}>
@@ -190,8 +198,8 @@ export default function Status({ user, profile }) {
 
         {myGames.map(g => (
           <div key={g.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'9px 14px',borderTop:'1px solid #f0f0f0'}}>
-            <div style={{width:'32px',height:'32px',borderRadius:'8px',background: platformColors[g.platform]?.bg || '#eee',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <span style={{fontSize:'9px',fontWeight:'700',color: platformColors[g.platform]?.color || '#888'}}>{g.platform}</span>
+            <div style={{width:'32px',height:'32px',borderRadius:'8px',background:platformColors[g.platform]?.bg||'#eee',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <span style={{fontSize:'9px',fontWeight:'700',color:platformColors[g.platform]?.color||'#888'}}>{g.platform}</span>
             </div>
             <div style={{flex:1}}>
               <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.game_name}</div>

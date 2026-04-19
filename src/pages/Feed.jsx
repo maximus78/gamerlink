@@ -5,6 +5,7 @@ import ProfilPote from './ProfilPote'
 export default function Feed({ user, profile }) {
   const [statuses, setStatuses] = useState([])
   const [contacts, setContacts] = useState([])
+  const [userGames, setUserGames] = useState({})
   const [loading, setLoading] = useState(true)
   const [inviting, setInviting] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
@@ -17,17 +18,19 @@ export default function Feed({ user, profile }) {
   const myName = profile?.name?.split(' ')[0] || 'Ton pote'
 
   useEffect(() => {
-  fetchStatuses()
-  fetchContacts()
-  
-  const channel = supabase
-    .channel('feed-changes-' + user.id)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'statuses' }, () => fetchStatuses())
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_gamertags' }, () => fetchContacts())
-    .subscribe()
-    
-  return () => supabase.removeChannel(channel)
-}, [])
+    fetchAll()
+    const channel = supabase
+      .channel('feed-' + user.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'statuses' }, () => fetchStatuses())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_gamertags' }, () => fetchContacts())
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [])
+
+  const fetchAll = async () => {
+    await Promise.all([fetchStatuses(), fetchContacts(), fetchGamesForUsers([user.id])])
+  }
+
   const fetchStatuses = async () => {
     const { data: friends } = await supabase
       .from('friends').select('friend_id').eq('user_id', user.id)
@@ -40,7 +43,26 @@ export default function Feed({ user, profile }) {
       .in('user_id', friendIds)
       .order('created_at', { ascending: false })
     setStatuses(data || [])
+    const ids = [...new Set([...(data || []).map(s => s.user_id), user.id])]
+    fetchGamesForUsers(ids)
     setLoading(false)
+  }
+
+  const fetchGamesForUsers = async (userIds) => {
+    if (!userIds || userIds.length === 0) return
+    const { data } = await supabase
+      .from('user_games')
+      .select('*')
+      .in('user_id', userIds)
+      .order('hours_played', { ascending: false })
+    if (data) {
+      const grouped = {}
+      data.forEach(g => {
+        if (!grouped[g.user_id]) grouped[g.user_id] = []
+        if (grouped[g.user_id].length < 3) grouped[g.user_id].push(g)
+      })
+      setUserGames(prev => ({ ...prev, ...grouped }))
+    }
   }
 
   const fetchContacts = async () => {
@@ -79,6 +101,10 @@ export default function Feed({ user, profile }) {
   const getPill = (type) => type==='game' ? {label:'En game',bg:'#EAF3DE',color:'#27500A'} : type==='hot' ? {label:'Chaud',bg:'#FCEBEB',color:'#A32D2D'} : {label:'Dispo',bg:'#E6F1FB',color:'#185FA5'}
   const getDot = (type) => type==='game' ? '#639922' : type==='hot' ? '#E24B4A' : '#378ADD'
 
+  const platformColors = {
+    'Steam': '#1b2838', 'Xbox': '#107c10', 'PS': '#003087', 'Epic': '#2d2d2d', 'Discord': '#5865F2'
+  }
+
   const getPlatformTags = (c) => {
     const tags = []
     if (c.steam_tag) tags.push({ label: c.steam_tag, plt:'Steam', bg:'#1b2838', color:'#c7d5e0', border:'#4a90d9' })
@@ -89,20 +115,8 @@ export default function Feed({ user, profile }) {
     return tags
   }
 
-  if (selectedPote) return (
-    <ProfilPote
-      poteId={selectedPote}
-      onBack={() => setSelectedPote(null)}
-    />
-  )
-
-  if (selectedContact) return (
-    <ProfilPote
-      poteContact={selectedContact}
-      onBack={() => setSelectedContact(null)}
-    />
-  )
-
+  if (selectedPote) return <ProfilPote poteId={selectedPote} onBack={() => setSelectedPote(null)} user={user} />
+  if (selectedContact) return <ProfilPote poteContact={selectedContact} onBack={() => setSelectedContact(null)} user={user} />
   if (loading) return <div style={{padding:'40px 16px',textAlign:'center',color:'#bbb',fontSize:'13px'}}>Chargement...</div>
 
   return (
@@ -124,9 +138,11 @@ export default function Feed({ user, profile }) {
                 const name = s.profiles?.name || 'Joueur'
                 const pill = getPill(s.type)
                 const isMe = s.user_id === user?.id
+                const games = userGames[s.user_id] || []
+                console.log('userGames:', userGames, 'user_id:', s.user_id, 'games:', games)
                 return (
                   <div key={s.id} className="frow" onClick={() => !isMe && setSelectedPote(s.user_id)}
-                    style={{cursor: isMe ? 'default' : 'pointer'}}>
+                    style={{cursor:isMe?'default':'pointer'}}>
                     <div className="av-wrap">
                       <div className="av" style={{background:getColor(name),color:getTextColor(name)}}>{getInitials(name)}</div>
                       <span className="fdot" style={{background:getDot(s.type)}}></span>
@@ -139,6 +155,15 @@ export default function Feed({ user, profile }) {
                         </div>
                         <span className="game-row-txt">{s.game}</span>
                       </div>
+                      {games.length > 0 && (
+                        <div style={{display:'flex',gap:'3px',marginTop:'3px',flexWrap:'wrap'}}>
+                          {games.map((g,i) => (
+                            <span key={i} style={{fontSize:'9px',padding:'1px 5px',borderRadius:'4px',background:platformColors[g.platform]||'#333',color:'#fff',opacity:0.75,fontWeight:'500'}}>
+                              {g.game_name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <span className="pill" style={{background:pill.bg,color:pill.color}}>{pill.label}</span>
                   </div>

@@ -8,6 +8,7 @@ export default function Invitation() {
   const [discord, setDiscord] = useState('')
   const [psn, setPsn] = useState('')
   const [epic, setEpic] = useState('')
+  const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
 
@@ -49,6 +50,7 @@ export default function Invitation() {
     await supabase.from('contact_gamertags').upsert({
       owner_id: invitation.profiles.id,
       contact_name: invitation.contact_name,
+      contact_phone: phone.replace(/\s/g, '') || null,
       steam_tag: steam,
       xbox_tag: xbox,
       psn_tag: psn,
@@ -120,6 +122,23 @@ export default function Invitation() {
           </div>
         </div>
 
+        {/* NUMÉRO DE TÉLÉPHONE */}
+        <div style={{marginBottom:'12px',padding:'12px',background:'#EAF3DE',borderRadius:'12px',border:'1px solid #97C459'}}>
+          <div style={{fontSize:'11px',fontWeight:'700',color:'#27500A',marginBottom:'6px',display:'flex',alignItems:'center',gap:'6px'}}>
+            📱 Ton numéro <span style={{fontWeight:'400',color:'#639922'}}>optionnel mais recommandé</span>
+          </div>
+          <input
+            type="tel"
+            placeholder="06 12 34 56 78"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            style={{width:'100%',padding:'9px 12px',border:'1px solid #97C459',borderRadius:'10px',fontSize:'14px',color:'#111',fontFamily:'inherit',outline:'none',background:'#fff'}}
+          />
+          <div style={{fontSize:'10px',color:'#639922',marginTop:'5px',lineHeight:'1.4'}}>
+            Permet à tes potes de te retrouver automatiquement sur GamerLink si tu t'inscris un jour.
+          </div>
+        </div>
+
         {fields.map((f, i) => (
           <div key={i} style={{marginBottom:'8px'}}>
             <div style={{fontSize:'11px',fontWeight:'600',color:'#888',marginBottom:'4px',display:'flex',alignItems:'center',gap:'6px'}}>
@@ -140,7 +159,7 @@ export default function Invitation() {
         ))}
 
         <button onClick={handleSave} disabled={loading || !hasValue}
-          style={{width:'100%',marginTop:'12px',padding:'13px',borderRadius:'12px',background: !hasValue ? '#eee' : '#111',color: !hasValue ? '#aaa' : '#fff',border:'none',fontSize:'13px',fontWeight:'700',cursor: !hasValue ? 'default' : 'pointer',fontFamily:'inherit'}}>
+          style={{width:'100%',marginTop:'12px',padding:'13px',borderRadius:'12px',background:!hasValue?'#eee':'#111',color:!hasValue?'#aaa':'#fff',border:'none',fontSize:'13px',fontWeight:'700',cursor:!hasValue?'default':'pointer',fontFamily:'inherit'}}>
           {loading ? 'Enregistrement...' : "C'est parti →"}
         </button>
 

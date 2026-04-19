@@ -45,6 +45,10 @@ export default function App() {
     setLoading(false)
   }
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+  }
+
   if (isInvitation) return <Invitation />
 
   if (loading) return (
@@ -86,14 +90,20 @@ export default function App() {
             {n.label}
           </button>
         ))}
-        <div style={{marginTop:'auto',padding:'12px 14px',borderRadius:'12px',background:'#fafaf9',display:'flex',alignItems:'center',gap:'10px'}}>
-          <div style={{width:'36px',height:'36px',borderRadius:'50%',background:'#EAF3DE',color:'#27500A',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',flexShrink:0}}>
-            {profile?.name?.charAt(0) || 'T'}
+        <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:'8px'}}>
+          <div style={{padding:'12px 14px',borderRadius:'12px',background:'#fafaf9',display:'flex',alignItems:'center',gap:'10px'}}>
+            <div style={{width:'36px',height:'36px',borderRadius:'50%',background:'#EAF3DE',color:'#27500A',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',flexShrink:0}}>
+              {profile?.name?.charAt(0) || 'T'}
+            </div>
+            <div>
+              <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{profile?.name?.split(' ')[0]}</div>
+              <div style={{fontSize:'11px',color:'#aaa'}}>En ligne</div>
+            </div>
           </div>
-          <div>
-            <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{profile?.name?.split(' ')[0]}</div>
-            <div style={{fontSize:'11px',color:'#aaa'}}>En ligne</div>
-          </div>
+          <button onClick={handleSignOut}
+            style={{width:'100%',padding:'10px',borderRadius:'12px',background:'#f5f5f5',color:'#888',border:'none',fontSize:'12px',fontWeight:'600',cursor:'pointer',fontFamily:'inherit'}}>
+            Se déconnecter
+          </button>
         </div>
       </div>
 
@@ -126,9 +136,15 @@ export default function App() {
             style={{width:'32px',height:'32px',borderRadius:'50%',background:page==='recherche'?'#111':'#f0f0f0',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
             <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke={page==='recherche'?'#fff':'#888'} strokeWidth="1.5"/><line x1="10" y1="10" x2="14" y2="14" stroke={page==='recherche'?'#fff':'#888'} strokeWidth="1.5"/></svg>
           </div>
-          <span style={{fontSize:'11px',color:'#27500A',background:'#EAF3DE',padding:'3px 10px',borderRadius:'20px',fontWeight:'600'}}>
-            {profile.name?.split(' ')[0] || 'Toi'}
-          </span>
+          <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+            <span style={{fontSize:'11px',color:'#27500A',background:'#EAF3DE',padding:'3px 10px',borderRadius:'20px',fontWeight:'600'}}>
+              {profile.name?.split(' ')[0] || 'Toi'}
+            </span>
+            <button onClick={handleSignOut}
+              style={{fontSize:'11px',color:'#888',background:'#f5f5f5',border:'none',padding:'3px 8px',borderRadius:'20px',cursor:'pointer',fontFamily:'inherit',fontWeight:'600'}}>
+              ↪
+            </button>
+          </div>
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import Status from './pages/Status'
 import Session from './pages/Session'
 import Decouvrir from './pages/Decouvrir'
 import Recherche from './pages/Recherche'
+import Invitation from './pages/Invitation'
 import './App.css'
 
 export default function App() {
@@ -15,7 +16,10 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState('feed')
 
+  const isInvitation = new URLSearchParams(window.location.search).get('token')
+
   useEffect(() => {
+    if (isInvitation) { setLoading(false); return }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       if (session) fetchProfile(session.user.id)
@@ -37,6 +41,8 @@ export default function App() {
     setProfile(data)
     setLoading(false)
   }
+
+  if (isInvitation) return <Invitation />
 
   if (loading) return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f0efe8'}}>

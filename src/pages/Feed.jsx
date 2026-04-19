@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-export default function Feed({ user }) {
+export default function Feed({ user, profile }) {
   const [statuses, setStatuses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [inviting, setInviting] = useState(false)
+  const [inviteLink, setInviteLink] = useState('')
+  const [contactName, setContactName] = useState('')
+  const [showInvite, setShowInvite] = useState(false)
+
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+  const myName = profile?.name?.split(' ')[0] || 'Ton pote'
 
   useEffect(() => {
     fetchStatuses()
@@ -23,19 +30,60 @@ export default function Feed({ user }) {
       .from('friends')
       .select('friend_id')
       .eq('user_id', user.id)
-
     const friendIds = (friends || []).map(f => f.friend_id)
     friendIds.push(user.id)
-
     const { data } = await supabase
       .from('statuses')
       .select('*, profiles(name, phone)')
       .gt('expires_at', new Date().toISOString())
       .in('user_id', friendIds)
       .order('created_at', { ascending: false })
-
     setStatuses(data || [])
     setLoading(false)
+  }
+
+  const generateInvite = async () => {
+    if (!contactName.trim()) return
+    setInviting(true)
+    const { data } = await supabase
+      .from('invitations')
+      .insert({ created_by: user.id, contact_name: contactName })
+      .select()
+      .single()
+    if (data) {
+      const link = `${window.location.origin}?token=${data.token}`
+      setInviteLink(link)
+    }
+    setInviting(false)
+  }
+
+  const shareText = `${myName} veut savoir à quoi tu joues sur GamerLink. Renseigne ton pseudo en 30 sec 👇\n${inviteLink}`
+
+  const shareNative = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'GamerLink — Renseigne ton gamertag',
+          text: shareText,
+          url: inviteLink
+        })
+      } catch(e) {}
+    } else {
+      navigator.clipboard.writeText(inviteLink)
+      alert('Lien copié !')
+    }
+  }
+
+  const shareWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`)
+  const shareSMS = () => window.open(`sms:?body=${encodeURIComponent(shareText)}`)
+  const shareEmail = () => {
+    const subject = encodeURIComponent('GamerLink — Renseigne ton gamertag')
+    const body = encodeURIComponent(`${shareText}\n\nPas besoin de créer un compte.`)
+    window.open(`mailto:?subject=${subject}&body=${body}`)
+  }
+  const copyLink = () => {
+    navigator.clipboard.writeText(inviteLink)
+    alert('Lien copié !')
   }
 
   const getInitials = (name) => {
@@ -66,9 +114,7 @@ export default function Feed({ user }) {
   }
 
   if (loading) return (
-    <div style={{padding:'40px 16px',textAlign:'center',color:'#bbb',fontSize:'13px'}}>
-      Chargement...
-    </div>
+    <div style={{padding:'40px 16px',textAlign:'center',color:'#bbb',fontSize:'13px'}}>Chargement...</div>
   )
 
   return (
@@ -76,11 +122,9 @@ export default function Feed({ user }) {
       {statuses.length === 0 ? (
         <div style={{padding:'40px 16px',textAlign:'center'}}>
           <div style={{fontSize:'32px',marginBottom:'12px'}}>🎮</div>
-          <div style={{fontSize:'14px',fontWeight:'600',color:'#111',marginBottom:'8px'}}>
-            Personne n'est en ligne
-          </div>
+          <div style={{fontSize:'14px',fontWeight:'600',color:'#111',marginBottom:'8px'}}>Personne n'est en ligne</div>
           <div style={{fontSize:'12px',color:'#aaa',lineHeight:'1.5',marginBottom:'16px'}}>
-            Mets ton statut ou invite des potes via la loupe en haut à droite.
+            Mets ton statut ou invite des potes ci-dessous.
           </div>
         </div>
       ) : (
@@ -109,9 +153,7 @@ export default function Feed({ user }) {
                     <span className="game-row-txt">{s.game}</span>
                   </div>
                 </div>
-                <span className="pill" style={{background: pill.bg, color: pill.color}}>
-                  {pill.label}
-                </span>
+                <span className="pill" style={{background: pill.bg, color: pill.color}}>{pill.label}</span>
               </div>
             )
           })}
@@ -119,20 +161,89 @@ export default function Feed({ user }) {
       )}
 
       <div style={{margin:'16px 16px 0',border:'1px dashed #ddd',borderRadius:'14px',overflow:'hidden'}}>
-        <div style={{background:'#fafaf9',padding:'10px 12px',fontSize:'11px',color:'#888',fontWeight:'600'}}>
-          Inviter des potes
+        <div style={{background:'#fafaf9',padding:'10px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{fontSize:'11px',color:'#888',fontWeight:'600'}}>Inviter un pote</span>
+          <button onClick={() => setShowInvite(!showInvite)}
+            style={{fontSize:'11px',color:'#185FA5',fontWeight:'600',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit'}}>
+            {showInvite ? 'Fermer' : '+ Générer un lien'}
+          </button>
         </div>
-        <div style={{padding:'10px 12px',fontSize:'12px',color:'#aaa',lineHeight:'1.5'}}>
-          Partage ce lien à tes potes pour qu'ils rejoignent GamerLink.
-        </div>
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(window.location.href)
-            alert('Lien copié !')
-          }}
-          style={{margin:'0 12px 12px',padding:'8px 16px',borderRadius:'10px',border:'1px solid #eee',background:'#fff',fontSize:'12px',fontWeight:'600',color:'#111',cursor:'pointer',fontFamily:'inherit'}}>
-          Copier le lien d'invitation
-        </button>
+
+        {showInvite && (
+          <div style={{padding:'12px'}}>
+            {!inviteLink ? (
+              <>
+                <div style={{fontSize:'11px',color:'#aaa',marginBottom:'8px',lineHeight:'1.5'}}>
+                  Entre le prénom de ton pote — il reçoit un lien pour renseigner son gamertag en 30 sec sans créer de compte.
+                </div>
+                <div style={{display:'flex',gap:'8px'}}>
+                  <input
+                    type="text"
+                    placeholder="Prénom du pote..."
+                    value={contactName}
+                    onChange={e => setContactName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && generateInvite()}
+                    style={{flex:1,padding:'9px 12px',border:'1px solid #eee',borderRadius:'10px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none'}}
+                  />
+                  <button onClick={generateInvite} disabled={inviting || !contactName.trim()}
+                    style={{padding:'9px 14px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',opacity: !contactName.trim() ? 0.5 : 1}}>
+                    {inviting ? '...' : 'Créer'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{fontSize:'12px',color:'#27500A',fontWeight:'600',marginBottom:'8px'}}>
+                  Lien créé pour {contactName} ✓
+                </div>
+
+                {isMobile ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+                    <button onClick={shareNative}
+                      style={{width:'100%',padding:'11px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'}}>
+                      Partager via le téléphone →
+                    </button>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+                      <button onClick={shareWhatsApp}
+                        style={{padding:'9px',borderRadius:'10px',background:'#25D366',color:'#fff',border:'none',fontSize:'11px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'}}>
+                        WhatsApp
+                      </button>
+                      <button onClick={shareSMS}
+                        style={{padding:'9px',borderRadius:'10px',background:'#34C759',color:'#fff',border:'none',fontSize:'11px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'}}>
+                        SMS
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+                    <div style={{fontSize:'11px',color:'#aaa',marginBottom:'4px',lineHeight:'1.5'}}>
+                      Sur PC — copie le lien ou envoie par email/WhatsApp web
+                    </div>
+                    <button onClick={copyLink}
+                      style={{width:'100%',padding:'10px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'}}>
+                      Copier le lien
+                    </button>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+                      <button onClick={shareWhatsApp}
+                        style={{padding:'9px',borderRadius:'10px',background:'#25D366',color:'#fff',border:'none',fontSize:'11px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'}}>
+                        WhatsApp Web
+                      </button>
+                      <button onClick={shareEmail}
+                        style={{padding:'9px',borderRadius:'10px',background:'#f0f0f0',color:'#555',border:'none',fontSize:'11px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'}}>
+                        Email
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={() => {setInviteLink('');setContactName('');}}
+                  style={{width:'100%',marginTop:'6px',padding:'8px',borderRadius:'10px',background:'#f5f5f5',color:'#888',border:'none',fontSize:'11px',cursor:'pointer',fontFamily:'inherit'}}>
+                  Générer un nouveau lien
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
       <div style={{height:'14px'}}></div>
     </div>

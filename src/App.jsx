@@ -81,7 +81,7 @@ export default function App() {
         <div style={{fontSize:'20px',fontWeight:'700',color:'#111',letterSpacing:'-.5px',marginBottom:'24px',padding:'0 10px'}}>GamerLink</div>
         {navItems.map(n => (
           <button key={n.key} onClick={() => setPage(n.key)}
-            style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderRadius:'12px',cursor:'pointer',fontSize:'14px',fontWeight: page===n.key ? '600' : '500',color: page===n.key ? '#fff' : '#888',background: page===n.key ? '#111' : 'transparent',border:'none',fontFamily:'inherit',width:'100%',textAlign:'left',transition:'background .15s'}}>
+            style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderRadius:'12px',cursor:'pointer',fontSize:'14px',fontWeight:page===n.key?'600':'500',color:page===n.key?'#fff':'#888',background:page===n.key?'#111':'transparent',border:'none',fontFamily:'inherit',width:'100%',textAlign:'left',transition:'background .15s'}}>
             {n.icon}
             {n.label}
           </button>
@@ -118,7 +118,7 @@ export default function App() {
   )
 
   return (
-    <div style={{width:'100%',background:'#fff',display:'flex',flexDirection:'column',minHeight:'100vh'}}>
+    <div style={{width:'100%',background:'#fff',display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 18px 8px',flexShrink:0}}>
         <span style={{fontSize:'20px',fontWeight:'700',color:'#111',letterSpacing:'-.5px'}}>GamerLink</span>
         <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
@@ -146,7 +146,7 @@ export default function App() {
       </div>
 
       {page !== 'recherche' && (
-        <div style={{display:'flex',borderTop:'1px solid #eee',padding:'8px 0 20px',background:'#fff',flexShrink:0}}>
+        <div style={{display:'flex',borderTop:'1px solid #eee',padding:'8px 0 34px',background:'#fff',flexShrink:0}}>
           {navItems.slice(0,4).map(n => (
             <div key={n.key} onClick={() => setPage(n.key)}
               style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',fontSize:'10px',color:page===n.key?'#111':'#bbb',cursor:'pointer',fontWeight:'500'}}>

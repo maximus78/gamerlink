@@ -81,29 +81,33 @@ export default function App() {
 
   if (isDesktop) return (
     <div style={{display:'flex',minHeight:'100vh',background:'#f0efe8'}}>
-      <div style={{width:'240px',background:'#fff',borderRight:'1px solid #eee',padding:'28px 16px',display:'flex',flexDirection:'column',gap:'4px',position:'sticky',top:0,height:'100vh',flexShrink:0}}>
+      <div style={{width:'240px',background:'#fff',borderRight:'1px solid #eee',padding:'28px 16px',display:'flex',flexDirection:'column',gap:'4px',position:'sticky',top:0,height:'100vh',flexShrink:0,overflowY:'auto'}}>
         <div style={{fontSize:'20px',fontWeight:'700',color:'#111',letterSpacing:'-.5px',marginBottom:'24px',padding:'0 10px'}}>GamerLink</div>
+
         {navItems.map(n => (
           <button key={n.key} onClick={() => setPage(n.key)}
-            style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderRadius:'12px',cursor:'pointer',fontSize:'14px',fontWeight:page===n.key?'600':'500',color:page===n.key?'#fff':'#888',background:page===n.key?'#111':'transparent',border:'none',fontFamily:'inherit',width:'100%',textAlign:'left',transition:'background .15s'}}>
+            style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderRadius:'12px',cursor:'pointer',fontSize:'14px',fontWeight:page===n.key?'600':'500',color:page===n.key?'#fff':'#888',background:page===n.key?'#111':'transparent',border:'none',fontFamily:'inherit',width:'100%',textAlign:'left'}}>
             {n.icon}
             {n.label}
           </button>
         ))}
-        <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:'8px'}}>
-          <div style={{padding:'12px 14px',borderRadius:'12px',background:'#fafaf9',display:'flex',alignItems:'center',gap:'10px'}}>
-            <div style={{width:'36px',height:'36px',borderRadius:'50%',background:'#EAF3DE',color:'#27500A',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',flexShrink:0}}>
-              {profile?.name?.charAt(0) || 'T'}
-            </div>
-            <div>
-              <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{profile?.name?.split(' ')[0]}</div>
-              <div style={{fontSize:'11px',color:'#aaa'}}>En ligne</div>
-            </div>
+
+        <div style={{height:'1px',background:'#eee',margin:'8px 0'}}></div>
+
+        <button onClick={handleSignOut}
+          style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderRadius:'12px',cursor:'pointer',fontSize:'14px',fontWeight:'500',color:'#e63946',background:'transparent',border:'none',fontFamily:'inherit',width:'100%',textAlign:'left'}}>
+          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M7 3H4a1 1 0 00-1 1v10a1 1 0 001 1h3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/><polyline points="12,6 15,9 12,12" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/><line x1="15" y1="9" x2="7" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          Se déconnecter
+        </button>
+
+        <div style={{marginTop:'auto',padding:'12px 14px',borderRadius:'12px',background:'#fafaf9',display:'flex',alignItems:'center',gap:'10px'}}>
+          <div style={{width:'36px',height:'36px',borderRadius:'50%',background:'#EAF3DE',color:'#27500A',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',flexShrink:0}}>
+            {profile?.name?.charAt(0) || 'T'}
           </div>
-          <button onClick={handleSignOut}
-            style={{width:'100%',padding:'10px',borderRadius:'12px',background:'#f5f5f5',color:'#888',border:'none',fontSize:'12px',fontWeight:'600',cursor:'pointer',fontFamily:'inherit'}}>
-            Se déconnecter
-          </button>
+          <div>
+            <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{profile?.name?.split(' ')[0]}</div>
+            <div style={{fontSize:'11px',color:'#aaa'}}>En ligne</div>
+          </div>
         </div>
       </div>
 

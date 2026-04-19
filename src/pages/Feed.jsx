@@ -17,16 +17,17 @@ export default function Feed({ user, profile }) {
   const myName = profile?.name?.split(' ')[0] || 'Ton pote'
 
   useEffect(() => {
-    fetchStatuses()
-    fetchContacts()
-    const channel = supabase
-      .channel('statuses')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'statuses' }, () => fetchStatuses())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_gamertags' }, () => fetchContacts())
-      .subscribe()
-    return () => supabase.removeChannel(channel)
-  }, [])
-
+  fetchStatuses()
+  fetchContacts()
+  
+  const channel = supabase
+    .channel('feed-changes-' + user.id)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'statuses' }, () => fetchStatuses())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_gamertags' }, () => fetchContacts())
+    .subscribe()
+    
+  return () => supabase.removeChannel(channel)
+}, [])
   const fetchStatuses = async () => {
     const { data: friends } = await supabase
       .from('friends').select('friend_id').eq('user_id', user.id)

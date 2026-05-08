@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
 export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
@@ -8,6 +8,9 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
   const [showAddGame, setShowAddGame] = useState(false)
   const [steamImporting, setSteamImporting] = useState(false)
   const [steamResult, setSteamResult] = useState(null)
+  const [gameSuggestions, setGameSuggestions] = useState([])
+  const [searchingGames, setSearchingGames] = useState(false)
+  const searchTimeout = useRef(null)
 
   const platforms = ['Steam', 'Xbox', 'PS', 'Epic', 'Discord']
 
@@ -28,12 +31,45 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     setMyGames(data || [])
   }
 
+  const searchGames = async (query) => {
+    if (!query || query.length < 2) { setGameSuggestions([]); return }
+    setSearchingGames(true)
+    try {
+      const res = await fetch(`https://api.rawg.io/api/games?search=${encodeURIComponent(query)}&page_size=6&key=`)
+      const data = await res.json()
+      setGameSuggestions(data.results || [])
+    } catch(e) {
+      setGameSuggestions([])
+    }
+    setSearchingGames(false)
+  }
+
+  const handleGameInput = (value) => {
+    setNewGame(value)
+    clearTimeout(searchTimeout.current)
+    searchTimeout.current = setTimeout(() => searchGames(value), 400)
+  }
+
+  const selectGame = async (game) => {
+    setNewGame(game.name)
+    setGameSuggestions([])
+    // Ajouter directement
+    await supabase.from('user_games').upsert({
+      user_id: user.id,
+      game_name: game.name,
+      platform: newPlatform,
+      last_played: new Date().toISOString()
+    }, { onConflict: 'user_id,game_name' })
+    setNewGame('')
+    setShowAddGame(false)
+    fetchMyGames()
+  }
+
   const connectSteam = async () => {
     const steamId = prompt('Entre ton Steam ID (ex: 76561199027066116)\nTrouve-le sur steamcommunity.com/id/tonpseudo')
     if (!steamId) return
     setSteamImporting(true)
     setSteamResult(null)
-
     try {
       await supabase.from('profiles').update({ steam_id: steamId }).eq('id', user.id)
 
@@ -51,7 +87,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
 
       const resFriends = await fetch(`/api/steam-friends?steamid=${steamId}`)
       const dataFriends = await resFriends.json()
-
       let newFriends = 0
       if (dataFriends.friends && dataFriends.friends.length > 0) {
         const { data: matches } = await supabase
@@ -59,17 +94,12 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
         if (matches && matches.length > 0) {
           for (const match of matches) {
             if (match.id === user.id) continue
-            await supabase.from('friends').upsert({
-              user_id: user.id, friend_id: match.id
-            }, { onConflict: 'user_id,friend_id' })
-            await supabase.from('friends').upsert({
-              user_id: match.id, friend_id: user.id
-            }, { onConflict: 'user_id,friend_id' })
+            await supabase.from('friends').upsert({ user_id: user.id, friend_id: match.id }, { onConflict: 'user_id,friend_id' })
+            await supabase.from('friends').upsert({ user_id: match.id, friend_id: user.id }, { onConflict: 'user_id,friend_id' })
             newFriends++
           }
         }
       }
-
       setSteamResult({ friends: newFriends, friendsTotal: dataFriends.friends?.length || 0 })
     } catch(e) {
       alert('Erreur : ' + e.message)
@@ -89,6 +119,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     }, { onConflict: 'user_id,game_name' })
     setNewGame('')
     setShowAddGame(false)
+    setGameSuggestions([])
     fetchMyGames()
   }
 
@@ -143,22 +174,20 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
               {steamImporting ? '...' : profile?.steam_id ? 'Resync' : '+ Connecter'}
             </button>
           </div>
-
           {steamImporting && (
             <div style={{margin:'0 14px 12px',padding:'10px 12px',background:'#f5f5f5',borderRadius:'10px',fontSize:'11px',color:'#888'}}>
               🔍 Import jeux + scan amis Steam en cours...
             </div>
           )}
-
           {steamResult && (
             <div style={{margin:'0 14px 12px',padding:'10px 12px',background:'#EAF3DE',borderRadius:'10px'}}>
               <div style={{fontSize:'12px',fontWeight:'700',color:'#27500A'}}>
                 {steamResult.friends > 0
-                  ? `🎉 ${steamResult.friends} pote${steamResult.friends > 1 ? 's' : ''} trouvé${steamResult.friends > 1 ? 's' : ''} sur GamerLink !`
+                  ? `🎉 ${steamResult.friends} pote${steamResult.friends > 1 ? 's' : ''} trouvé${steamResult.friends > 1 ? 's' : ''} !`
                   : '😕 Aucun pote Steam sur GamerLink pour l\'instant'}
               </div>
               <div style={{fontSize:'10px',color:'#639922',marginTop:'2px'}}>
-                {steamResult.friendsTotal} amis Steam scannés · Jeux importés ✓
+                {steamResult.friendsTotal} amis scannés · Jeux importés ✓
               </div>
             </div>
           )}
@@ -221,20 +250,51 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
 
         {showAddGame && (
           <div style={{padding:'12px',borderTop:'1px solid #f0f0f0',background:'#fafaf9'}}>
+            <div style={{position:'relative',marginBottom:'8px'}}>
+              <input type="text" placeholder="Recherche un jeu..." value={newGame}
+                onChange={e => handleGameInput(e.target.value)}
+                style={{width:'100%',padding:'8px 12px',border:'1px solid #eee',borderRadius:'10px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none',boxSizing:'border-box'}}/>
+              {searchingGames && (
+                <div style={{position:'absolute',right:'10px',top:'50%',transform:'translateY(-50%)',fontSize:'11px',color:'#bbb'}}>
+                  ...
+                </div>
+              )}
+              {/* Suggestions */}
+              {gameSuggestions.length > 0 && (
+                <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1px solid #eee',borderRadius:'10px',marginTop:'4px',zIndex:100,boxShadow:'0 4px 12px rgba(0,0,0,0.1)',overflow:'hidden'}}>
+                  {gameSuggestions.map((g, i) => (
+                    <div key={g.id} onClick={() => selectGame(g)}
+                      style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 12px',cursor:'pointer',borderBottom:i<gameSuggestions.length-1?'1px solid #f5f5f5':'none',background:'#fff'}}
+                      onMouseEnter={e => e.currentTarget.style.background='#fafaf9'}
+                      onMouseLeave={e => e.currentTarget.style.background='#fff'}>
+                      {g.background_image ? (
+                        <img src={g.background_image} alt={g.name}
+                          style={{width:'36px',height:'36px',borderRadius:'6px',objectFit:'cover',flexShrink:0}}/>
+                      ) : (
+                        <div style={{width:'36px',height:'36px',borderRadius:'6px',background:'#f0f0f0',flexShrink:0}}/>
+                      )}
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:'12px',fontWeight:'600',color:'#111',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.name}</div>
+                        <div style={{fontSize:'10px',color:'#aaa',marginTop:'1px'}}>
+                          {g.released ? new Date(g.released).getFullYear() : ''} 
+                          {g.genres?.slice(0,2).map(genre => genre.name).join(' · ')}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div style={{display:'flex',gap:'6px',marginBottom:'8px'}}>
-              <input type="text" placeholder="Nom du jeu..." value={newGame}
-                onChange={e => setNewGame(e.target.value)}
-                onKeyDown={e => e.key==='Enter' && handleAddGame()}
-                style={{flex:1,padding:'8px 12px',border:'1px solid #eee',borderRadius:'10px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none'}}/>
               <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)}
-                style={{padding:'8px 10px',border:'1px solid #eee',borderRadius:'10px',fontSize:'12px',color:'#111',fontFamily:'inherit',background:'#fff'}}>
+                style={{flex:1,padding:'8px 10px',border:'1px solid #eee',borderRadius:'10px',fontSize:'12px',color:'#111',fontFamily:'inherit',background:'#fff'}}>
                 {platforms.map(p => <option key={p}>{p}</option>)}
               </select>
+              <button onClick={handleAddGame} disabled={!newGame.trim()}
+                style={{flex:1,padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',opacity:!newGame.trim()?0.5:1}}>
+                Ajouter
+              </button>
             </div>
-            <button onClick={handleAddGame} disabled={!newGame.trim()}
-              style={{width:'100%',padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',opacity:!newGame.trim()?0.5:1}}>
-              Ajouter ce jeu
-            </button>
           </div>
         )}
 

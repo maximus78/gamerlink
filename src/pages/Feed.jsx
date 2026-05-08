@@ -42,38 +42,23 @@ export default function Feed({ user, profile }) {
     Discord: { bg: '#5865F2', color: '#fff' }
   }
 
-  // Bulles de jaquettes superposées
   const GameBubbles = ({ games }) => {
-    const top = games.slice(0, 5)
-    const size = 28
-    const overlap = 10
-    const totalWidth = top.length > 0 ? size + (top.length - 1) * (size - overlap) : 0
-
+    const top = games.filter(g => g.cover_url).slice(0, 5)
+    if (top.length === 0) return null
     return (
-      <div style={{position:'relative',width:`${totalWidth}px`,height:`${size}px`,flexShrink:0}}>
+      <div style={{display:'flex',marginBottom:'8px'}}>
         {top.map((g, i) => (
           <div key={i} style={{
-            position:'absolute',
-            left:`${i * (size - overlap)}px`,
-            width:`${size}px`,
-            height:`${size}px`,
-            borderRadius:'50%',
-            border:'2px solid #fff',
-            overflow:'hidden',
-            background:platformColors[g.platform]?.bg || '#333',
-            zIndex:top.length - i,
-            boxShadow:'0 1px 3px rgba(0,0,0,0.15)'
+            width:'28px', height:'28px', borderRadius:'50%',
+            border:'2px solid #fff', overflow:'hidden',
+            marginLeft: i === 0 ? '0' : '-8px',
+            background: platformColors[g.platform]?.bg || '#333',
+            zIndex: top.length - i,
+            position:'relative', flexShrink:0,
+            boxShadow:'0 1px 3px rgba(0,0,0,0.2)'
           }}>
-            {g.cover_url ? (
-              <img src={g.cover_url} alt={g.game_name}
-                style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-            ) : (
-              <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <span style={{color:platformColors[g.platform]?.color||'#fff',display:'flex',alignItems:'center'}}>
-                  <PlatformLogo platform={g.platform} size={12}/>
-                </span>
-              </div>
-            )}
+            <img src={g.cover_url} alt={g.game_name}
+              style={{width:'100%',height:'100%',objectFit:'cover'}}/>
           </div>
         ))}
       </div>
@@ -301,7 +286,6 @@ export default function Feed({ user, profile }) {
 
   return (
     <div>
-      {/* Barre de recherche */}
       <div style={{padding:'12px 16px 8px'}}>
         <div style={{position:'relative'}}>
           <svg style={{position:'absolute',left:'10px',top:'50%',transform:'translateY(-50%)',opacity:0.4}} width="14" height="14" viewBox="0 0 14 14">
@@ -314,7 +298,6 @@ export default function Feed({ user, profile }) {
         </div>
       </div>
 
-      {/* Bouton scan contacts */}
       {!scanDone && isMobile && (
         <div style={{padding:'0 16px 10px'}}>
           <button onClick={handleScanContacts} disabled={scanning}
@@ -324,7 +307,6 @@ export default function Feed({ user, profile }) {
         </div>
       )}
 
-      {/* Résultat scan */}
       {scanDone && scanResult && (
         <div style={{margin:'0 16px 10px',padding:'12px 14px',background:'#EAF3DE',borderRadius:'12px',border:'1px solid #97C459'}}>
           <div style={{fontSize:'13px',fontWeight:'700',color:'#27500A'}}>
@@ -365,7 +347,6 @@ export default function Feed({ user, profile }) {
                   <div key={s.id} style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5',cursor:isMe?'default':'pointer'}}
                     onClick={() => !isMe && setSelectedPote(s.user_id)}>
 
-                    {/* Ligne principale */}
                     <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
                       <div style={{position:'relative',flexShrink:0}}>
                         <Avatar name={name} avatarUrl={s.profiles?.avatar_url} size={40} />
@@ -380,7 +361,6 @@ export default function Feed({ user, profile }) {
                       </span>
                     </div>
 
-                    {/* Genres + habitudes */}
                     {(genres.length > 0 || habits) && (
                       <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px'}}>
                         {genres.map((g,i) => (
@@ -396,24 +376,9 @@ export default function Feed({ user, profile }) {
                       </div>
                     )}
 
-                    {/* Bulles jaquettes + nombre d'heures */}
-                    {top5.length > 0 && (
-                      <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
-                        <GameBubbles games={top5} />
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:'9px',color:'#aaa',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                            {top5.map(g => g.game_name).join(' · ')}
-                          </div>
-                          {top5[0]?.hours_played > 0 && (
-                            <div style={{fontSize:'9px',color:'#bbb',marginTop:'1px'}}>
-                              {top5[0].hours_played}h sur {top5[0].game_name}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                    {/* Bulles jaquettes */}
+                    <GameBubbles games={top5} />
 
-                    {/* Bouton Je rejoins */}
                     {!isMe && (
                       <button onClick={(e) => { e.stopPropagation(); handleRejoindre(s) }}
                         style={{width:'100%',padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
@@ -461,7 +426,6 @@ export default function Feed({ user, profile }) {
         </>
       )}
 
-      {/* Inviter un pote */}
       <div style={{margin:'16px 16px 0',border:'1px dashed #ddd',borderRadius:'14px',overflow:'hidden'}}>
         <div style={{background:'#fafaf9',padding:'10px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <span style={{fontSize:'11px',color:'#888',fontWeight:'600'}}>Inviter un pote</span>

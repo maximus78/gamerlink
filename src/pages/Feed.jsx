@@ -13,6 +13,7 @@ export default function Feed({ user, profile }) {
   const [showInvite, setShowInvite] = useState(false)
   const [selectedPote, setSelectedPote] = useState(null)
   const [selectedContact, setSelectedContact] = useState(null)
+  const [search, setSearch] = useState('')
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
   const myName = profile?.name?.split(' ')[0] || 'Ton pote'
@@ -51,9 +52,7 @@ export default function Feed({ user, profile }) {
   const fetchGamesForUsers = async (userIds) => {
     if (!userIds || userIds.length === 0) return
     const { data } = await supabase
-      .from('user_games')
-      .select('*')
-      .in('user_id', userIds)
+      .from('user_games').select('*').in('user_id', userIds)
       .order('hours_played', { ascending: false })
     if (data) {
       const grouped = {}
@@ -67,9 +66,7 @@ export default function Feed({ user, profile }) {
 
   const fetchContacts = async () => {
     const { data } = await supabase
-      .from('contact_gamertags')
-      .select('*')
-      .eq('owner_id', user.id)
+      .from('contact_gamertags').select('*').eq('owner_id', user.id)
     setContacts(data || [])
   }
 
@@ -82,6 +79,24 @@ export default function Feed({ user, profile }) {
       .select().single()
     if (data) setInviteLink(`${window.location.origin}?token=${data.token}`)
     setInviting(false)
+  }
+
+  // SMS pré-rempli pour rejoindre
+  const handleRejoindre = (s) => {
+    const name = s.profiles?.name?.split(' ')[0] || 'ton pote'
+    const text = `Yo ! Je te rejoins sur ${s.game} 🎮 — GamerLink`
+    if (isMobile) {
+      const phone = s.profiles?.phone
+      window.open(`sms:${phone || ''}?body=${encodeURIComponent(text)}`)
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`)
+    }
+  }
+
+  // SMS pré-rempli pour inviter un pote sans l'app
+  const handleInviterContact = (c) => {
+    const text = `${myName} t'invite sur GamerLink 🎮 — viens voir à quoi on joue ce soir : ${window.location.origin}`
+    window.open(`sms:?body=${encodeURIComponent(text)}`)
   }
 
   const shareText = `${myName} veut savoir à quoi tu joues sur GamerLink. Renseigne ton pseudo en 30 sec 👇\n${inviteLink}`
@@ -115,93 +130,145 @@ export default function Feed({ user, profile }) {
     return tags
   }
 
+  // Filtrage recherche
+  const filteredStatuses = statuses.filter(s => {
+    if (!search) return true
+    const name = s.profiles?.name || ''
+    return name.toLowerCase().includes(search.toLowerCase()) ||
+      s.game?.toLowerCase().includes(search.toLowerCase())
+  })
+
+  const filteredContacts = contacts.filter(c => {
+    if (!search) return true
+    return c.contact_name?.toLowerCase().includes(search.toLowerCase())
+  })
+
   if (selectedPote) return <ProfilPote poteId={selectedPote} onBack={() => { setSelectedPote(null); fetchContacts(); fetchStatuses(); }} user={user} />
   if (selectedContact) return <ProfilPote poteContact={selectedContact} onBack={() => { setSelectedContact(null); fetchContacts(); fetchStatuses(); }} user={user} />
   if (loading) return <div style={{padding:'40px 16px',textAlign:'center',color:'#bbb',fontSize:'13px'}}>Chargement...</div>
 
   return (
     <div>
-      {statuses.length === 0 && contacts.length === 0 ? (
+
+      {/* Barre de recherche */}
+      <div style={{padding:'12px 16px 8px'}}>
+        <div style={{position:'relative'}}>
+          <svg style={{position:'absolute',left:'10px',top:'50%',transform:'translateY(-50%)',opacity:0.4}} width="14" height="14" viewBox="0 0 14 14">
+            <circle cx="5.5" cy="5.5" r="4" fill="none" stroke="#111" strokeWidth="1.5"/>
+            <line x1="8.5" y1="8.5" x2="13" y2="13" stroke="#111" strokeWidth="1.5"/>
+          </svg>
+          <input
+            type="text"
+            placeholder="Rechercher un pote ou un jeu..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{width:'100%',padding:'9px 12px 9px 30px',border:'1px solid #eee',borderRadius:'12px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none',background:'#fafaf9',boxSizing:'border-box'}}
+          />
+        </div>
+      </div>
+
+      {filteredStatuses.length === 0 && filteredContacts.length === 0 ? (
         <div style={{padding:'40px 16px',textAlign:'center'}}>
           <div style={{fontSize:'32px',marginBottom:'12px'}}>🎮</div>
-          <div style={{fontSize:'14px',fontWeight:'600',color:'#111',marginBottom:'8px'}}>Personne n'est en ligne</div>
-          <div style={{fontSize:'12px',color:'#aaa',lineHeight:'1.5'}}>Mets ton statut ou invite des potes ci-dessous.</div>
+          <div style={{fontSize:'14px',fontWeight:'600',color:'#111',marginBottom:'8px'}}>
+            {search ? 'Aucun résultat' : 'Personne n\'est en ligne'}
+          </div>
+          <div style={{fontSize:'12px',color:'#aaa',lineHeight:'1.5'}}>
+            {search ? 'Essaie un autre nom ou jeu.' : 'Mets ton statut ou invite des potes ci-dessous.'}
+          </div>
         </div>
       ) : (
         <>
-          {statuses.length > 0 && (
+          {filteredStatuses.length > 0 && (
             <>
-              <div style={{padding:'10px 16px 6px',fontSize:'11px',color:'#aaa',fontWeight:'500'}}>
-                {statuses.length} joueur{statuses.length>1?'s':''} actif{statuses.length>1?'s':''} en ce moment
+              <div style={{padding:'4px 16px 6px',fontSize:'11px',color:'#aaa',fontWeight:'500'}}>
+                {filteredStatuses.length} joueur{filteredStatuses.length>1?'s':''} actif{filteredStatuses.length>1?'s':''} en ce moment
               </div>
-              {statuses.map(s => {
+              {filteredStatuses.map(s => {
                 const name = s.profiles?.name || 'Joueur'
                 const pill = getPill(s.type)
                 const isMe = s.user_id === user?.id
                 const games = userGames[s.user_id] || []
-                console.log('userGames:', userGames, 'user_id:', s.user_id, 'games:', games)
                 return (
-                  <div key={s.id} className="frow" onClick={() => !isMe && setSelectedPote(s.user_id)}
-                    style={{cursor:isMe?'default':'pointer'}}>
-                    <div className="av-wrap">
-                      <div className="av" style={{background:getColor(name),color:getTextColor(name)}}>{getInitials(name)}</div>
-                      <span className="fdot" style={{background:getDot(s.type)}}></span>
-                    </div>
-                    <div className="fi">
-                      <div className="fn">{name}{isMe?' (toi)':''}</div>
-                      <div className="game-row">
-                        <div className="game-logo-sm" style={{background:'#1a1a2e'}}>
-                          <svg width="13" height="13" viewBox="0 0 13 13"><rect x="1" y="5.5" width="11" height="2" fill="#e63946" rx="1"/><rect x="5.5" y="1" width="2" height="11" fill="#e63946" rx="1"/></svg>
+                  <div key={s.id} style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5'}}>
+                    {/* Ligne principale */}
+                    <div style={{display:'flex',alignItems:'center',gap:'10px',cursor:isMe?'default':'pointer'}}
+                      onClick={() => !isMe && setSelectedPote(s.user_id)}>
+                      <div style={{position:'relative',flexShrink:0}}>
+                        <div style={{width:'38px',height:'38px',borderRadius:'50%',background:getColor(name),color:getTextColor(name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700'}}>
+                          {getInitials(name)}
                         </div>
-                        <span className="game-row-txt">{s.game}</span>
+                        <span style={{position:'absolute',bottom:'0',right:'0',width:'9px',height:'9px',borderRadius:'50%',background:getDot(s.type),border:'2px solid #fff'}}></span>
                       </div>
-                      {games.length > 0 && (
-                        <div style={{display:'flex',gap:'3px',marginTop:'3px',flexWrap:'wrap'}}>
-                          {games.map((g,i) => (
-                            <span key={i} style={{fontSize:'9px',padding:'1px 5px',borderRadius:'4px',background:platformColors[g.platform]||'#333',color:'#fff',opacity:0.75,fontWeight:'500'}}>
-                              {g.game_name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{name}{isMe?' (toi)':''}</div>
+                        <div style={{fontSize:'11px',color:'#888',marginTop:'1px'}}>{s.game}</div>
+                        {games.length > 0 && (
+                          <div style={{display:'flex',gap:'3px',marginTop:'4px',flexWrap:'wrap'}}>
+                            {games.map((g,i) => (
+                              <span key={i} style={{fontSize:'9px',padding:'1px 5px',borderRadius:'4px',background:platformColors[g.platform]||'#333',color:'#fff',opacity:0.75,fontWeight:'500'}}>
+                                {g.game_name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <span style={{fontSize:'10px',fontWeight:'600',padding:'3px 8px',borderRadius:'20px',background:pill.bg,color:pill.color,flexShrink:0}}>
+                        {pill.label}
+                      </span>
                     </div>
-                    <span className="pill" style={{background:pill.bg,color:pill.color}}>{pill.label}</span>
+
+                    {/* Bouton Je rejoins — seulement si c'est pas moi */}
+                    {!isMe && (
+                      <div style={{marginTop:'10px'}}>
+                        <button onClick={() => handleRejoindre(s)}
+                          style={{width:'100%',padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+                          🎮 Je rejoins
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </>
           )}
 
-          {contacts.length > 0 && (
+          {filteredContacts.length > 0 && (
             <>
               <div style={{padding:'10px 16px 6px',fontSize:'10px',fontWeight:'700',color:'#bbb',letterSpacing:'.08em',textTransform:'uppercase',marginTop:'6px'}}>
                 Potes sans l'app
               </div>
-              {contacts.map(c => (
-                <div key={c.id} className="frow" onClick={() => setSelectedContact(c)}
-                  style={{cursor:'pointer',opacity:0.85}}>
-                  <div className="av-wrap">
-                    <div className="av" style={{background:getColor(c.contact_name),color:getTextColor(c.contact_name),border:'1.5px dashed #ddd'}}>
-                      {getInitials(c.contact_name)}
+              {filteredContacts.map(c => (
+                <div key={c.id} style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',marginBottom:'8px'}}
+                    onClick={() => setSelectedContact(c)}>
+                    <div style={{flexShrink:0}}>
+                      <div style={{width:'38px',height:'38px',borderRadius:'50%',background:getColor(c.contact_name),color:getTextColor(c.contact_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',border:'1.5px dashed #ddd'}}>
+                        {getInitials(c.contact_name)}
+                      </div>
                     </div>
-                  </div>
-                  <div className="fi">
-                    <div className="fn" style={{color:'#888'}}>{c.contact_name}</div>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginTop:'4px'}}>
-                      {getPlatformTags(c).slice(0,2).map((t,i) => (
-                        <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'0',border:`1px solid ${t.border}`,borderRadius:'6px',overflow:'hidden'}}>
-                          <span style={{fontSize:'9px',fontWeight:'700',padding:'2px 5px',background:t.bg,color:t.color,letterSpacing:'.03em'}}>{t.plt}</span>
-                          <span style={{fontSize:'10px',fontWeight:'500',padding:'2px 6px 2px 4px',color:'#444'}}>{t.label}</span>
-                        </div>
-                      ))}
-                      {getPlatformTags(c).length > 2 && (
-                        <span style={{fontSize:'10px',color:'#aaa',padding:'2px 4px'}}>+{getPlatformTags(c).length - 2}</span>
-                      )}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:'13px',fontWeight:'600',color:'#888'}}>{c.contact_name}</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginTop:'4px'}}>
+                        {getPlatformTags(c).slice(0,2).map((t,i) => (
+                          <div key={i} style={{display:'inline-flex',alignItems:'center',border:`1px solid ${t.border}`,borderRadius:'6px',overflow:'hidden'}}>
+                            <span style={{fontSize:'9px',fontWeight:'700',padding:'2px 5px',background:t.bg,color:t.color}}>{t.plt}</span>
+                            <span style={{fontSize:'10px',fontWeight:'500',padding:'2px 6px 2px 4px',color:'#444'}}>{t.label}</span>
+                          </div>
+                        ))}
+                        {getPlatformTags(c).length > 2 && (
+                          <span style={{fontSize:'10px',color:'#aaa',padding:'2px 4px'}}>+{getPlatformTags(c).length - 2}</span>
+                        )}
+                      </div>
                     </div>
+                    <span style={{fontSize:'10px',color:'#bbb',padding:'2px 7px',borderRadius:'20px',border:'1px dashed #ddd',whiteSpace:'nowrap',flexShrink:0}}>
+                      Sans app
+                    </span>
                   </div>
-                  <span style={{fontSize:'10px',color:'#bbb',padding:'2px 7px',borderRadius:'20px',border:'1px dashed #ddd',whiteSpace:'nowrap',flexShrink:0}}>
-                    Sans app
-                  </span>
+                  <button onClick={() => handleInviterContact(c)}
+                    style={{width:'100%',padding:'8px',borderRadius:'10px',background:'#f5f5f5',color:'#555',border:'none',fontSize:'12px',fontWeight:'600',cursor:'pointer',fontFamily:'inherit'}}>
+                    📲 Inviter sur GamerLink
+                  </button>
                 </div>
               ))}
             </>
@@ -209,6 +276,7 @@ export default function Feed({ user, profile }) {
         </>
       )}
 
+      {/* Inviter un pote */}
       <div style={{margin:'16px 16px 0',border:'1px dashed #ddd',borderRadius:'14px',overflow:'hidden'}}>
         <div style={{background:'#fafaf9',padding:'10px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <span style={{fontSize:'11px',color:'#888',fontWeight:'600'}}>Inviter un pote</span>

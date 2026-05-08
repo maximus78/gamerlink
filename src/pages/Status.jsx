@@ -19,6 +19,8 @@ export default function Status({ user, profile }) {
   const [activeTab, setActiveTab] = useState('statut')
   const [groupId] = useState(() => `group-${user.id}`)
   const [manualPhone, setManualPhone] = useState('')
+  const [gameSearch, setGameSearch] = useState('')
+  const [defiGameSearch, setDefiGameSearch] = useState('')
   const messagesEndRef = useRef(null)
 
   const fallbackDefis = [
@@ -237,28 +239,39 @@ export default function Status({ user, profile }) {
     ...contacts.map(c => ({ id: c.id, name: c.contact_name, phone: c.contact_phone, type: 'contact' }))
   ]
 
-  // Pills de jeux — même présentation partout
-  const GamePills = ({ selectedId, onSelect }) => (
-    <div style={{padding:'10px 14px',display:'flex',gap:'6px',flexWrap:'wrap'}}>
-      {myGames.length === 0 ? (
-        <div style={{fontSize:'12px',color:'#bbb'}}>Ajoute des jeux dans ton Profil</div>
-      ) : (
-        myGames.map(g => (
-          <div key={g.id} onClick={() => onSelect(g)}
-            style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 12px',borderRadius:'20px',border:`1px solid ${selectedId===g.id?'#111':'#eee'}`,background:selectedId===g.id?'#111':'#fff',cursor:'pointer',flexShrink:0}}>
-            {g.cover_url ? (
-              <img src={g.cover_url} alt={g.game_name}
-                onError={e => e.target.style.display='none'}
-                style={{width:'18px',height:'18px',borderRadius:'4px',objectFit:'cover',flexShrink:0}}/>
-            ) : null}
-            <span style={{fontSize:'12px',fontWeight:'600',color:selectedId===g.id?'#fff':'#111',whiteSpace:'nowrap'}}>
-              {g.game_name}
-            </span>
-          </div>
-        ))
-      )}
-    </div>
-  )
+  const GamePills = ({ selectedId, onSelect, search, onSearch }) => {
+    const filtered = search
+      ? myGames.filter(g => g.game_name.toLowerCase().includes(search.toLowerCase()))
+      : myGames.slice(0, 3)
+    return (
+      <div style={{padding:'10px 14px'}}>
+        <input type="text" placeholder="Rechercher un jeu..."
+          value={search} onChange={e => onSearch(e.target.value)}
+          style={{width:'100%',padding:'7px 12px',border:'1px solid #eee',borderRadius:'10px',fontSize:'12px',color:'#111',fontFamily:'inherit',outline:'none',marginBottom:'10px',boxSizing:'border-box'}}/>
+        <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+          {myGames.length === 0 ? (
+            <div style={{fontSize:'12px',color:'#bbb'}}>Ajoute des jeux dans ton Profil</div>
+          ) : filtered.length === 0 ? (
+            <div style={{fontSize:'12px',color:'#bbb'}}>Aucun jeu trouvé</div>
+          ) : (
+            filtered.map(g => (
+              <div key={g.id} onClick={() => onSelect(g)}
+                style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 12px',borderRadius:'20px',border:`1px solid ${selectedId===g.id?'#111':'#eee'}`,background:selectedId===g.id?'#111':'#fff',cursor:'pointer',flexShrink:0}}>
+                {g.cover_url ? (
+                  <img src={g.cover_url} alt={g.game_name}
+                    onError={e => e.target.style.display='none'}
+                    style={{width:'18px',height:'18px',borderRadius:'4px',objectFit:'cover',flexShrink:0}}/>
+                ) : null}
+                <span style={{fontSize:'12px',fontWeight:'600',color:selectedId===g.id?'#fff':'#111',whiteSpace:'nowrap'}}>
+                  {g.game_name}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    )
+  }
 
   const PoteChip = ({ pote, selected, onSelect }) => (
     <div onClick={onSelect}
@@ -333,15 +346,18 @@ export default function Status({ user, profile }) {
             </div>
           </div>
 
-          {/* Jeux en pills */}
           {status !== 'off' && (
             <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
               <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Je joue à...</div>
-              <GamePills selectedId={selectedGame?.id} onSelect={setSelectedGame} />
+              <GamePills
+                selectedId={selectedGame?.id}
+                onSelect={setSelectedGame}
+                search={gameSearch}
+                onSearch={setGameSearch}
+              />
             </div>
           )}
 
-          {/* Quand */}
           {status !== 'off' && (
             <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
               <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Quand ?</div>
@@ -394,12 +410,13 @@ export default function Status({ user, profile }) {
             </div>
           </div>
 
-          {/* Jeux en pills */}
           <div style={{marginBottom:'14px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
             <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Sur quel jeu ?</div>
             <GamePills
               selectedId={selectedDefiGame?.id}
               onSelect={(g) => { setSelectedDefiGame(g); fetchDefis(g.game_name) }}
+              search={defiGameSearch}
+              onSearch={setDefiGameSearch}
             />
           </div>
 

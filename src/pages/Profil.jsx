@@ -1,0 +1,198 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../supabase'
+
+export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
+  const [myGames, setMyGames] = useState([])
+  const [newGame, setNewGame] = useState('')
+  const [newPlatform, setNewPlatform] = useState('Steam')
+  const [showAddGame, setShowAddGame] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const platforms = ['Steam', 'Xbox', 'PS', 'Epic', 'Discord']
+
+  const platformColors = {
+    'Steam': { bg: '#1b2838', color: '#c7d5e0' },
+    'Xbox': { bg: '#107c10', color: '#fff' },
+    'PS': { bg: '#003087', color: '#fff' },
+    'Epic': { bg: '#2d2d2d', color: '#fff' },
+    'Discord': { bg: '#5865F2', color: '#fff' }
+  }
+
+  useEffect(() => {
+    fetchMyGames()
+  }, [])
+
+  const fetchMyGames = async () => {
+    const { data } = await supabase
+      .from('user_games').select('*').eq('user_id', user.id)
+      .order('hours_played', { ascending: false })
+    setMyGames(data || [])
+  }
+
+  const importFromSteam = async () => {
+    const steamId = prompt('Entre ton Steam ID (ex: 76561199027066116)')
+    if (!steamId) return
+    try {
+      const res = await fetch(`https://steamcommunity.com/profiles/${steamId}/games/?tab=all&xml=1`)
+      const text = await res.text()
+      if (text.includes('privacyMessage') || text.includes('This profile is private')) {
+        alert('Profil Steam privé — rends-le public dans les paramètres Steam')
+        return
+      }
+      const games = []
+      const gameBlockRegex = /<game>([\s\S]*?)<\/game>/g
+      let block
+      while ((block = gameBlockRegex.exec(text)) !== null) {
+        const content = block[1]
+        const nameMatch = content.match(/<name><!\[CDATA\[([^\]]+)\]\]><\/name>/)
+        if (!nameMatch) continue
+        const name = nameMatch[1].trim()
+        const hoursMatch = content.match(/<hoursOnRecord>([^<]+)<\/hoursOnRecord>/)
+        const hours = hoursMatch ? parseFloat(hoursMatch[1].replace(',', '.')) || 0 : 0
+        games.push({ name, hours })
+      }
+      games.sort((a, b) => b.hours - a.hours)
+      const top = games.slice(0, 10)
+      if (top.length === 0) { alert('Aucun jeu trouvé'); return }
+      for (const g of top) {
+        await supabase.from('user_games').upsert({
+          user_id: user.id, game_name: g.name, platform: 'Steam',
+          hours_played: Math.floor(g.hours), last_played: new Date().toISOString()
+        }, { onConflict: 'user_id,game_name' })
+      }
+      await fetchMyGames()
+      alert(`${top.length} jeux importés !`)
+    } catch(e) {
+      alert('Erreur : ' + e.message)
+    }
+  }
+
+  const handleAddGame = async () => {
+    if (!newGame.trim()) return
+    await supabase.from('user_games').upsert({
+      user_id: user.id, game_name: newGame.trim(), platform: newPlatform,
+      last_played: new Date().toISOString()
+    }, { onConflict: 'user_id,game_name' })
+    setNewGame('')
+    setShowAddGame(false)
+    fetchMyGames()
+  }
+
+  const handleDeleteGame = async (id) => {
+    await supabase.from('user_games').delete().eq('id', id)
+    fetchMyGames()
+  }
+
+  const getInitials = (name) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2) : '?'
+
+  return (
+    <div>
+
+      {/* Hero profil */}
+      <div style={{padding:'20px 16px 16px',display:'flex',alignItems:'center',gap:'14px',borderBottom:'1px solid #f5f5f5'}}>
+        <div style={{width:'56px',height:'56px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',fontWeight:'700',color:'#27500A',flexShrink:0}}>
+          {getInitials(profile?.name)}
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:'16px',fontWeight:'700',color:'#111'}}>{profile?.name}</div>
+          <div style={{fontSize:'12px',color:'#aaa',marginTop:'2px'}}>📱 {profile?.phone}</div>
+        </div>
+      </div>
+
+      {/* Comptes connectés */}
+      <div style={{margin:'14px 16px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
+        <div style={{padding:'10px 14px',background:'#fafaf9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Mes comptes</span>
+        </div>
+
+        {[
+          { key: 'steam', label: 'Steam', bg: '#1b2838', color: '#c7d5e0', action: importFromSteam },
+          { key: 'psn', label: 'PSN', bg: '#003087', color: '#fff', action: null },
+          { key: 'xbox', label: 'Xbox', bg: '#107c10', color: '#fff', action: null },
+          { key: 'epic', label: 'Epic', bg: '#2d2d2d', color: '#fff', action: null },
+        ].map((p, i) => (
+          <div key={p.key} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 14px',borderTop:'1px solid #f0f0f0'}}>
+            <div style={{width:'36px',height:'36px',borderRadius:'8px',background:p.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <span style={{fontSize:'10px',fontWeight:'700',color:p.color}}>{p.label}</span>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{p.label}</div>
+              <div style={{fontSize:'10px',color:'#bbb',marginTop:'1px'}}>
+                {profile?.[`${p.key}_id`] ? '✓ Connecté' : 'Non connecté'}
+              </div>
+            </div>
+            <button onClick={p.action || (() => alert('Bientôt disponible'))}
+              style={{fontSize:'11px',padding:'5px 12px',borderRadius:'20px',border:'1px solid #eee',background:'#fff',color:'#111',cursor:'pointer',fontFamily:'inherit',fontWeight:'600'}}>
+              {profile?.[`${p.key}_id`] ? 'Gérer' : '+ Connecter'}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Mes jeux */}
+      <div style={{margin:'0 16px 14px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
+        <div style={{padding:'10px 14px',background:'#fafaf9',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'6px'}}>
+          <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Mes jeux</span>
+          <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+            <button onClick={importFromSteam}
+              style={{fontSize:'11px',color:'#c7d5e0',background:'#1b2838',border:'none',padding:'3px 8px',borderRadius:'20px',cursor:'pointer',fontFamily:'inherit',fontWeight:'600',whiteSpace:'nowrap'}}>
+              ⬇ Steam
+            </button>
+            <button onClick={() => setShowAddGame(!showAddGame)}
+              style={{fontSize:'11px',color:'#185FA5',fontWeight:'600',background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}}>
+              {showAddGame ? 'Fermer' : '+ Ajouter'}
+            </button>
+          </div>
+        </div>
+
+        {showAddGame && (
+          <div style={{padding:'12px',borderTop:'1px solid #f0f0f0',background:'#fafaf9'}}>
+            <div style={{display:'flex',gap:'6px',marginBottom:'8px'}}>
+              <input type="text" placeholder="Nom du jeu..." value={newGame}
+                onChange={e => setNewGame(e.target.value)}
+                onKeyDown={e => e.key==='Enter' && handleAddGame()}
+                style={{flex:1,padding:'8px 12px',border:'1px solid #eee',borderRadius:'10px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none'}}/>
+              <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)}
+                style={{padding:'8px 10px',border:'1px solid #eee',borderRadius:'10px',fontSize:'12px',color:'#111',fontFamily:'inherit',background:'#fff'}}>
+                {platforms.map(p => <option key={p}>{p}</option>)}
+              </select>
+            </div>
+            <button onClick={handleAddGame} disabled={!newGame.trim()}
+              style={{width:'100%',padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',opacity:!newGame.trim()?0.5:1}}>
+              Ajouter ce jeu
+            </button>
+          </div>
+        )}
+
+        {myGames.length === 0 && !showAddGame && (
+          <div style={{padding:'16px',textAlign:'center',fontSize:'12px',color:'#bbb'}}>
+            Connecte Steam ou ajoute tes jeux manuellement
+          </div>
+        )}
+
+        {myGames.map(g => (
+          <div key={g.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'9px 14px',borderTop:'1px solid #f0f0f0'}}>
+            <div style={{width:'32px',height:'32px',borderRadius:'8px',background:platformColors[g.platform]?.bg||'#eee',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <span style={{fontSize:'9px',fontWeight:'700',color:platformColors[g.platform]?.color||'#888'}}>{g.platform}</span>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.game_name}</div>
+              <div style={{fontSize:'10px',color:'#aaa',marginTop:'1px'}}>{g.platform}{g.hours_played ? ` · ${g.hours_played}h` : ''}</div>
+            </div>
+            <button onClick={() => handleDeleteGame(g.id)}
+              style={{background:'none',border:'none',cursor:'pointer',color:'#ddd',fontSize:'16px',padding:'4px'}}>×</button>
+          </div>
+        ))}
+      </div>
+
+      {/* Déconnexion */}
+      <div style={{padding:'0 16px 32px'}}>
+        <button onClick={onSignOut}
+          style={{width:'100%',padding:'12px',borderRadius:'12px',background:'#fff',border:'1px solid #eee',color:'#e63946',fontSize:'13px',fontWeight:'600',cursor:'pointer',fontFamily:'inherit'}}>
+          Se déconnecter
+        </button>
+      </div>
+
+    </div>
+  )
+}

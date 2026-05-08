@@ -35,9 +35,9 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     if (!query || query.length < 2) { setGameSuggestions([]); return }
     setSearchingGames(true)
     try {
-      const res = await fetch(`https://api.rawg.io/api/games?search=${encodeURIComponent(query)}&page_size=6&key=`)
+      const res = await fetch(`/api/games-search?query=${encodeURIComponent(query)}`)
       const data = await res.json()
-      setGameSuggestions(data.results || [])
+      setGameSuggestions(data.games || [])
     } catch(e) {
       setGameSuggestions([])
     }
@@ -53,7 +53,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
   const selectGame = async (game) => {
     setNewGame(game.name)
     setGameSuggestions([])
-    // Ajouter directement
     await supabase.from('user_games').upsert({
       user_id: user.id,
       game_name: game.name,
@@ -72,7 +71,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     setSteamResult(null)
     try {
       await supabase.from('profiles').update({ steam_id: steamId }).eq('id', user.id)
-
       const resGames = await fetch(`/api/steam?steamid=${steamId}`)
       const dataGames = await resGames.json()
       if (dataGames.games && dataGames.games.length > 0) {
@@ -84,7 +82,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
         }
         await fetchMyGames()
       }
-
       const resFriends = await fetch(`/api/steam-friends?steamid=${steamId}`)
       const dataFriends = await resFriends.json()
       let newFriends = 0
@@ -259,7 +256,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
                   ...
                 </div>
               )}
-              {/* Suggestions */}
               {gameSuggestions.length > 0 && (
                 <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1px solid #eee',borderRadius:'10px',marginTop:'4px',zIndex:100,boxShadow:'0 4px 12px rgba(0,0,0,0.1)',overflow:'hidden'}}>
                   {gameSuggestions.map((g, i) => (
@@ -267,8 +263,8 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
                       style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 12px',cursor:'pointer',borderBottom:i<gameSuggestions.length-1?'1px solid #f5f5f5':'none',background:'#fff'}}
                       onMouseEnter={e => e.currentTarget.style.background='#fafaf9'}
                       onMouseLeave={e => e.currentTarget.style.background='#fff'}>
-                      {g.background_image ? (
-                        <img src={g.background_image} alt={g.name}
+                      {g.cover?.url ? (
+                        <img src={g.cover.url.replace('t_thumb','t_cover_small')} alt={g.name}
                           style={{width:'36px',height:'36px',borderRadius:'6px',objectFit:'cover',flexShrink:0}}/>
                       ) : (
                         <div style={{width:'36px',height:'36px',borderRadius:'6px',background:'#f0f0f0',flexShrink:0}}/>
@@ -276,7 +272,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:'12px',fontWeight:'600',color:'#111',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.name}</div>
                         <div style={{fontSize:'10px',color:'#aaa',marginTop:'1px'}}>
-                          {g.released ? new Date(g.released).getFullYear() : ''} 
                           {g.genres?.slice(0,2).map(genre => genre.name).join(' · ')}
                         </div>
                       </div>
@@ -285,7 +280,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
                 </div>
               )}
             </div>
-            <div style={{display:'flex',gap:'6px',marginBottom:'8px'}}>
+            <div style={{display:'flex',gap:'6px'}}>
               <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)}
                 style={{flex:1,padding:'8px 10px',border:'1px solid #eee',borderRadius:'10px',fontSize:'12px',color:'#111',fontFamily:'inherit',background:'#fff'}}>
                 {platforms.map(p => <option key={p}>{p}</option>)}

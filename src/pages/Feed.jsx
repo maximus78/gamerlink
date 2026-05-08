@@ -62,7 +62,7 @@ export default function Feed({ user, profile }) {
       const grouped = {}
       data.forEach(g => {
         if (!grouped[g.user_id]) grouped[g.user_id] = []
-        if (grouped[g.user_id].length < 3) grouped[g.user_id].push(g)
+        grouped[g.user_id].push(g)
       })
       setUserGames(prev => ({ ...prev, ...grouped }))
     }
@@ -72,6 +72,28 @@ export default function Feed({ user, profile }) {
     const { data } = await supabase
       .from('contact_gamertags').select('*').eq('owner_id', user.id)
     setContacts(data || [])
+  }
+
+  // Déduire les genres depuis les jeux
+  const getGenres = (games) => {
+    const genreMap = {
+      'warzone': 'FPS', 'cs2': 'FPS', 'valorant': 'FPS', 'apex': 'FPS', 'xdefiant': 'FPS', 'overwatch': 'FPS', 'battlefield': 'FPS', 'cod': 'FPS',
+      'rocket league': 'Sport', 'fc ': 'Sport', 'fifa': 'Sport', 'nba': 'Sport', 'nhl': 'Sport', 'madden': 'Sport',
+      'fortnite': 'Battle Royale', 'pubg': 'Battle Royale', 'naraka': 'Battle Royale',
+      'league': 'MOBA', 'dota': 'MOBA', 'smite': 'MOBA',
+      'minecraft': 'Survie', 'rust': 'Survie', 'ark': 'Survie',
+      'wow': 'RPG', 'elden': 'RPG', 'witcher': 'RPG', 'cyberpunk': 'RPG', 'diablo': 'RPG',
+      'gta': 'Open World', 'rdr': 'Open World',
+      'among': 'Party', 'fall guys': 'Party',
+    }
+    const genres = new Set()
+    games.forEach(g => {
+      const name = g.game_name?.toLowerCase() || ''
+      Object.entries(genreMap).forEach(([key, genre]) => {
+        if (name.includes(key)) genres.add(genre)
+      })
+    })
+    return [...genres].slice(0, 3)
   }
 
   // SCAN CONTACTS
@@ -85,15 +107,11 @@ export default function Feed({ user, profile }) {
       const props = ['name', 'tel']
       const opts = { multiple: true }
       const rawContacts = await navigator.contacts.select(props, opts)
-      if (!rawContacts || rawContacts.length === 0) {
-        setScanning(false)
-        return
-      }
+      if (!rawContacts || rawContacts.length === 0) { setScanning(false); return }
 
-      // Extraire tous les numéros
       const phones = []
       rawContacts.forEach(c => {
-        (c.tel || []).forEach(tel => {
+        ;(c.tel || []).forEach(tel => {
           const clean = tel.replace(/\s/g, '').replace(/\./g, '').replace(/-/g, '')
           if (clean) phones.push({ phone: clean, name: c.name?.[0] || 'Contact' })
         })
@@ -101,27 +119,20 @@ export default function Feed({ user, profile }) {
 
       if (phones.length === 0) { setScanning(false); return }
 
-      // Chercher les matches dans Supabase
       const phoneNumbers = phones.map(p => p.phone)
       const { data: matches } = await supabase
-        .from('profiles')
-        .select('id, name, phone, avatar_url')
-        .in('phone', phoneNumbers)
+        .from('profiles').select('id, name, phone, avatar_url').in('phone', phoneNumbers)
 
-      // Pour chaque match ajouter comme ami
       let newFriends = 0
       if (matches && matches.length > 0) {
         for (const match of matches) {
           if (match.id === user.id) continue
           const { error } = await supabase.from('friends').upsert({
-            user_id: user.id,
-            friend_id: match.id
+            user_id: user.id, friend_id: match.id
           }, { onConflict: 'user_id,friend_id' })
           if (!error) newFriends++
-          // Relation inverse
           await supabase.from('friends').upsert({
-            user_id: match.id,
-            friend_id: user.id
+            user_id: match.id, friend_id: user.id
           }, { onConflict: 'user_id,friend_id' })
         }
       }
@@ -129,9 +140,7 @@ export default function Feed({ user, profile }) {
       setScanResult({ total: phones.length, found: newFriends })
       setScanDone(true)
       await fetchStatuses()
-    } catch(e) {
-      console.error(e)
-    }
+    } catch(e) { console.error(e) }
     setScanning(false)
   }
 
@@ -242,7 +251,7 @@ export default function Feed({ user, profile }) {
         </div>
       )}
 
-      {/* Résultat du scan */}
+      {/* Résultat scan */}
       {scanDone && scanResult && (
         <div style={{margin:'0 16px 10px',padding:'12px 14px',background:'#EAF3DE',borderRadius:'12px',border:'1px solid #97C459'}}>
           <div style={{fontSize:'13px',fontWeight:'700',color:'#27500A'}}>
@@ -280,6 +289,7 @@ export default function Feed({ user, profile }) {
                 const pill = getPill(s.type)
                 const isMe = s.user_id === user?.id
                 const games = userGames[s.user_id] || []
+                const genres = getGenres(games)
                 return (
                   <div key={s.id} style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5'}}>
                     <div style={{display:'flex',alignItems:'center',gap:'10px',cursor:isMe?'default':'pointer'}}
@@ -291,9 +301,20 @@ export default function Feed({ user, profile }) {
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{name}{isMe?' (toi)':''}</div>
                         <div style={{fontSize:'11px',color:'#888',marginTop:'1px'}}>{s.game}</div>
-                        {games.length > 0 && (
+                        {/* Genres déduits */}
+                        {genres.length > 0 && (
                           <div style={{display:'flex',gap:'3px',marginTop:'4px',flexWrap:'wrap'}}>
-                            {games.map((g,i) => (
+                            {genres.map((g,i) => (
+                              <span key={i} style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>
+                                {g}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {/* Jeux récents */}
+                        {games.length > 0 && genres.length === 0 && (
+                          <div style={{display:'flex',gap:'3px',marginTop:'4px',flexWrap:'wrap'}}>
+                            {games.slice(0,3).map((g,i) => (
                               <span key={i} style={{fontSize:'9px',padding:'1px 5px',borderRadius:'4px',background:platformColors[g.platform]||'#333',color:'#fff',opacity:0.75,fontWeight:'500'}}>
                                 {g.game_name}
                               </span>

@@ -91,7 +91,6 @@ export default function Feed({ user, profile }) {
       .in('user_id', friendIds)
       .order('created_at', { ascending: false })
 
-    // Toujours afficher ta propre carte même sans statut
     const hasMyStatus = (data || []).some(s => s.user_id === user.id)
     const allStatuses = hasMyStatus ? (data || []) : [
       {
@@ -101,6 +100,7 @@ export default function Feed({ user, profile }) {
         game: null,
         expires_at: null,
         invited_friends: [],
+        scheduled_when: null,
         profiles: {
           id: user.id,
           name: profile?.name,
@@ -351,6 +351,9 @@ export default function Feed({ user, profile }) {
                       <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{name}{isMe?' (toi)':''}</div>
                       <div style={{fontSize:'11px',color:'#888',marginTop:'1px'}}>
                         {isOff ? 'Pas dispo' : s.game}
+                        {!isOff && s.scheduled_when && (
+                          <span style={{marginLeft:'6px',color:'#bbb'}}>· {s.scheduled_when}</span>
+                        )}
                       </div>
                     </div>
                     <span style={{fontSize:'10px',fontWeight:'600',padding:'3px 8px',borderRadius:'20px',background:pill.bg,color:pill.color,flexShrink:0}}>

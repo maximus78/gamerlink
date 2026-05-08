@@ -6,6 +6,7 @@ export default function Feed({ user, profile }) {
   const [statuses, setStatuses] = useState([])
   const [contacts, setContacts] = useState([])
   const [userGames, setUserGames] = useState({})
+  const [userHabits, setUserHabits] = useState({})
   const [loading, setLoading] = useState(true)
   const [inviting, setInviting] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
@@ -21,6 +22,26 @@ export default function Feed({ user, profile }) {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
   const myName = profile?.name?.split(' ')[0] || 'Ton pote'
   const contactsSupported = 'contacts' in navigator && 'ContactsManager' in window
+
+  // Logos SVG plateformes
+  const PlatformLogo = ({ platform, size = 14 }) => {
+    const logos = {
+      Steam: <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.029 4.524 4.524s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.606 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.497 1.009 2.452-.397.957-1.497 1.41-2.455 1.015zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.662 0 3.015-1.35 3.015-3.015zm-5.273.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.251-1.017 2.265-2.266 2.265-1.252 0-2.265-1.014-2.265-2.265z"/></svg>,
+      Xbox: <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M4.102 7.062C2.908 8.418 2.139 10.2 2.021 12.15c.194 2.014 1.026 3.864 2.312 5.319C5.346 14.607 7.777 11.937 10.32 9.645c-1.297-1.269-4.023-3.177-6.218-2.583zM12 2.021c-1.293.024-2.533.36-3.627.958C10.14 4.51 12.721 6.98 14.1 8.87c1.383-1.893 3.963-4.36 5.727-5.891A9.888 9.888 0 0 0 12 2.021zm7.898 5.041c-2.195-.594-4.921 1.314-6.218 2.583 2.543 2.292 4.974 4.962 5.987 7.824 1.286-1.455 2.118-3.305 2.312-5.319a9.962 9.962 0 0 0-2.081-5.088zM5.697 18.445C7.207 19.95 9.493 20.927 12 20.979c2.507-.052 4.793-1.029 6.303-2.534C16.886 15.78 14.469 13.12 12 10.82c-2.469 2.3-4.886 4.96-6.303 7.625z"/></svg>,
+      PS: <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M8.984 2.596v16.71l3.915 1.261V6.688c0-.69.304-1.151.794-.991.636.181.76.814.76 1.504v5.876c1.735.895 3.03.07 3.03-2.437 0-2.492-.87-3.837-3.428-4.691-1.366-.45-3.505-1.02-5.071-1.353zm9.806 14.239c-1.79.499-3.667.249-5.126-.57v1.807c1.184.66 2.744.994 4.582.596 2.092-.445 3.135-1.735 3.135-3.193 0-1.504-.889-2.535-3.135-3.148l-2.46-.769v4.683c.736.42 1.565.594 2.46.594h.544zm-12.48-.664c-1.58.414-2.808.144-3.424-.57-.593-.693-.511-1.807.57-2.596.77-.569 2.013-.974 3.424-1.19v-1.74c-1.79.245-3.414.83-4.582 1.807-1.52 1.262-1.655 3.078-.413 4.445 1.243 1.367 3.59 1.807 5.845 1.191l-1.42-.347z"/></svg>,
+      Epic: <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M4 2h16v4H8v4h8v4H8v4h12v4H4V2z"/></svg>,
+      Discord: <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.101 18.08.114 18.1.136 18.116a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>,
+    }
+    return logos[platform] || null
+  }
+
+  const platformColors = {
+    Steam: { bg: '#1b2838', color: '#c7d5e0' },
+    Xbox: { bg: '#107c10', color: '#fff' },
+    PS: { bg: '#003087', color: '#fff' },
+    Epic: { bg: '#2d2d2d', color: '#fff' },
+    Discord: { bg: '#5865F2', color: '#fff' }
+  }
 
   useEffect(() => {
     fetchAll()
@@ -50,6 +71,7 @@ export default function Feed({ user, profile }) {
     setStatuses(data || [])
     const ids = [...new Set([...(data || []).map(s => s.user_id), user.id])]
     fetchGamesForUsers(ids)
+    fetchHabitsForUsers(ids)
     setLoading(false)
   }
 
@@ -68,23 +90,50 @@ export default function Feed({ user, profile }) {
     }
   }
 
+  const fetchHabitsForUsers = async (userIds) => {
+    if (!userIds || userIds.length === 0) return
+    const { data } = await supabase
+      .from('status_history').select('user_id, hour, day_of_week')
+      .in('user_id', userIds)
+    if (data) {
+      const habits = {}
+      data.forEach(h => {
+        if (!habits[h.user_id]) habits[h.user_id] = { hours: [], days: [] }
+        habits[h.user_id].hours.push(h.hour)
+        habits[h.user_id].days.push(h.day_of_week)
+      })
+      // Déduire les habitudes
+      const result = {}
+      Object.entries(habits).forEach(([uid, h]) => {
+        const avgHour = h.hours.reduce((a, b) => a + b, 0) / h.hours.length
+        const weekendCount = h.days.filter(d => d === 0 || d === 6).length
+        const isWeekend = weekendCount / h.days.length > 0.5
+        let timeLabel = ''
+        if (avgHour >= 6 && avgHour < 12) timeLabel = '🌅 Matin'
+        else if (avgHour >= 12 && avgHour < 18) timeLabel = '☀️ Après-midi'
+        else if (avgHour >= 18 && avgHour < 22) timeLabel = '🌙 Soir'
+        else timeLabel = '🌃 Nuit'
+        result[uid] = { timeLabel, isWeekend }
+      })
+      setUserHabits(result)
+    }
+  }
+
   const fetchContacts = async () => {
     const { data } = await supabase
       .from('contact_gamertags').select('*').eq('owner_id', user.id)
     setContacts(data || [])
   }
 
-  // Déduire les genres depuis les jeux
   const getGenres = (games) => {
     const genreMap = {
-      'warzone': 'FPS', 'cs2': 'FPS', 'valorant': 'FPS', 'apex': 'FPS', 'xdefiant': 'FPS', 'overwatch': 'FPS', 'battlefield': 'FPS', 'cod': 'FPS',
-      'rocket league': 'Sport', 'fc ': 'Sport', 'fifa': 'Sport', 'nba': 'Sport', 'nhl': 'Sport', 'madden': 'Sport',
-      'fortnite': 'Battle Royale', 'pubg': 'Battle Royale', 'naraka': 'Battle Royale',
-      'league': 'MOBA', 'dota': 'MOBA', 'smite': 'MOBA',
-      'minecraft': 'Survie', 'rust': 'Survie', 'ark': 'Survie',
-      'wow': 'RPG', 'elden': 'RPG', 'witcher': 'RPG', 'cyberpunk': 'RPG', 'diablo': 'RPG',
-      'gta': 'Open World', 'rdr': 'Open World',
-      'among': 'Party', 'fall guys': 'Party',
+      'warzone': 'FPS', 'cs2': 'FPS', 'valorant': 'FPS', 'apex': 'FPS', 'overwatch': 'FPS', 'battlefield': 'FPS', 'cod': 'FPS', 'xdefiant': 'FPS',
+      'rocket league': 'Sport', 'fc ': 'Sport', 'fifa': 'Sport', 'nba': 'Sport', 'nhl': 'Sport',
+      'fortnite': 'Battle Royale', 'pubg': 'Battle Royale',
+      'league': 'MOBA', 'dota': 'MOBA',
+      'minecraft': 'Survie', 'rust': 'Survie',
+      'wow': 'RPG', 'elden': 'RPG', 'witcher': 'RPG', 'diablo': 'RPG',
+      'gta': 'Open World', 'among': 'Party',
     }
     const genres = new Set()
     games.forEach(g => {
@@ -96,10 +145,9 @@ export default function Feed({ user, profile }) {
     return [...genres].slice(0, 3)
   }
 
-  // SCAN CONTACTS
   const handleScanContacts = async () => {
     if (!contactsSupported) {
-      alert('Le scan de contacts n\'est disponible que sur mobile (Android Chrome ou Safari iOS)')
+      alert('Le scan de contacts n\'est disponible que sur mobile')
       return
     }
     setScanning(true)
@@ -108,21 +156,16 @@ export default function Feed({ user, profile }) {
       const opts = { multiple: true }
       const rawContacts = await navigator.contacts.select(props, opts)
       if (!rawContacts || rawContacts.length === 0) { setScanning(false); return }
-
       const phones = []
       rawContacts.forEach(c => {
         ;(c.tel || []).forEach(tel => {
           const clean = tel.replace(/\s/g, '').replace(/\./g, '').replace(/-/g, '')
-          if (clean) phones.push({ phone: clean, name: c.name?.[0] || 'Contact' })
+          if (clean) phones.push(clean)
         })
       })
-
       if (phones.length === 0) { setScanning(false); return }
-
-      const phoneNumbers = phones.map(p => p.phone)
       const { data: matches } = await supabase
-        .from('profiles').select('id, name, phone, avatar_url').in('phone', phoneNumbers)
-
+        .from('profiles').select('id, name, phone, avatar_url').in('phone', phones)
       let newFriends = 0
       if (matches && matches.length > 0) {
         for (const match of matches) {
@@ -136,7 +179,6 @@ export default function Feed({ user, profile }) {
           }, { onConflict: 'user_id,friend_id' })
         }
       }
-
       setScanResult({ total: phones.length, found: newFriends })
       setScanDone(true)
       await fetchStatuses()
@@ -158,15 +200,14 @@ export default function Feed({ user, profile }) {
   const handleRejoindre = (s) => {
     const text = `Yo ! Je te rejoins sur ${s.game} 🎮 — GamerLink`
     if (isMobile) {
-      const phone = s.profiles?.phone
-      window.open(`sms:${phone || ''}?body=${encodeURIComponent(text)}`)
+      window.open(`sms:${s.profiles?.phone || ''}?body=${encodeURIComponent(text)}`)
     } else {
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`)
     }
   }
 
   const handleInviterContact = (c) => {
-    const text = `${myName} t'invite sur GamerLink 🎮 — viens voir à quoi on joue ce soir : ${window.location.origin}`
+    const text = `${myName} t'invite sur GamerLink — viens voir à quoi on joue ce soir : ${window.location.origin}`
     window.open(`sms:?body=${encodeURIComponent(text)}`)
   }
 
@@ -187,17 +228,13 @@ export default function Feed({ user, profile }) {
   const getPill = (type) => type==='game' ? {label:'En game',bg:'#EAF3DE',color:'#27500A'} : type==='hot' ? {label:'Chaud',bg:'#FCEBEB',color:'#A32D2D'} : {label:'Dispo',bg:'#E6F1FB',color:'#185FA5'}
   const getDot = (type) => type==='game' ? '#639922' : type==='hot' ? '#E24B4A' : '#378ADD'
 
-  const platformColors = {
-    'Steam': '#1b2838', 'Xbox': '#107c10', 'PS': '#003087', 'Epic': '#2d2d2d', 'Discord': '#5865F2'
-  }
-
   const getPlatformTags = (c) => {
     const tags = []
-    if (c.steam_tag) tags.push({ label: c.steam_tag, plt:'Steam', bg:'#1b2838', color:'#c7d5e0', border:'#4a90d9' })
-    if (c.xbox_tag) tags.push({ label: c.xbox_tag, plt:'Xbox', bg:'#107c10', color:'#fff', border:'#5dc85d' })
-    if (c.psn_tag) tags.push({ label: c.psn_tag, plt:'PS', bg:'#003087', color:'#fff', border:'#4a6fc4' })
-    if (c.epic_tag) tags.push({ label: c.epic_tag, plt:'Epic', bg:'#2d2d2d', color:'#fff', border:'#888' })
-    if (c.discord_tag) tags.push({ label: c.discord_tag, plt:'Discord', bg:'#5865F2', color:'#fff', border:'#7983f5' })
+    if (c.steam_tag) tags.push({ label: c.steam_tag, plt:'Steam' })
+    if (c.xbox_tag) tags.push({ label: c.xbox_tag, plt:'Xbox' })
+    if (c.psn_tag) tags.push({ label: c.psn_tag, plt:'PS' })
+    if (c.epic_tag) tags.push({ label: c.epic_tag, plt:'Epic' })
+    if (c.discord_tag) tags.push({ label: c.discord_tag, plt:'Discord' })
     return tags
   }
 
@@ -255,14 +292,10 @@ export default function Feed({ user, profile }) {
       {scanDone && scanResult && (
         <div style={{margin:'0 16px 10px',padding:'12px 14px',background:'#EAF3DE',borderRadius:'12px',border:'1px solid #97C459'}}>
           <div style={{fontSize:'13px',fontWeight:'700',color:'#27500A'}}>
-            {scanResult.found > 0
-              ? `🎉 ${scanResult.found} pote${scanResult.found > 1 ? 's' : ''} trouvé${scanResult.found > 1 ? 's' : ''} sur GamerLink !`
-              : '😕 Aucun pote sur GamerLink pour l\'instant'}
+            {scanResult.found > 0 ? `🎉 ${scanResult.found} pote${scanResult.found > 1 ? 's' : ''} trouvé${scanResult.found > 1 ? 's' : ''} !` : '😕 Aucun pote sur GamerLink pour l\'instant'}
           </div>
           <div style={{fontSize:'11px',color:'#639922',marginTop:'3px'}}>
-            {scanResult.found > 0
-              ? 'Ils apparaissent maintenant dans ton feed'
-              : `${scanResult.total} contacts scannés — invite tes potes à rejoindre`}
+            {scanResult.found > 0 ? 'Ils apparaissent maintenant dans ton feed' : `${scanResult.total} contacts scannés — invite tes potes`}
           </div>
         </div>
       )}
@@ -290,49 +323,64 @@ export default function Feed({ user, profile }) {
                 const isMe = s.user_id === user?.id
                 const games = userGames[s.user_id] || []
                 const genres = getGenres(games)
+                const habits = userHabits[s.user_id]
+                const top5 = games.slice(0, 5)
                 return (
-                  <div key={s.id} style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5'}}>
-                    <div style={{display:'flex',alignItems:'center',gap:'10px',cursor:isMe?'default':'pointer'}}
-                      onClick={() => !isMe && setSelectedPote(s.user_id)}>
+                  <div key={s.id} style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5',cursor:isMe?'default':'pointer'}}
+                    onClick={() => !isMe && setSelectedPote(s.user_id)}>
+                    {/* Ligne principale */}
+                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
                       <div style={{position:'relative',flexShrink:0}}>
-                        <Avatar name={name} avatarUrl={s.profiles?.avatar_url} size={38} />
+                        <Avatar name={name} avatarUrl={s.profiles?.avatar_url} size={40} />
                         <span style={{position:'absolute',bottom:'0',right:'0',width:'9px',height:'9px',borderRadius:'50%',background:getDot(s.type),border:'2px solid #fff'}}></span>
                       </div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{name}{isMe?' (toi)':''}</div>
                         <div style={{fontSize:'11px',color:'#888',marginTop:'1px'}}>{s.game}</div>
-                        {/* Genres déduits */}
-                        {genres.length > 0 && (
-                          <div style={{display:'flex',gap:'3px',marginTop:'4px',flexWrap:'wrap'}}>
-                            {genres.map((g,i) => (
-                              <span key={i} style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>
-                                {g}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {/* Jeux récents */}
-                        {games.length > 0 && genres.length === 0 && (
-                          <div style={{display:'flex',gap:'3px',marginTop:'4px',flexWrap:'wrap'}}>
-                            {games.slice(0,3).map((g,i) => (
-                              <span key={i} style={{fontSize:'9px',padding:'1px 5px',borderRadius:'4px',background:platformColors[g.platform]||'#333',color:'#fff',opacity:0.75,fontWeight:'500'}}>
-                                {g.game_name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
                       <span style={{fontSize:'10px',fontWeight:'600',padding:'3px 8px',borderRadius:'20px',background:pill.bg,color:pill.color,flexShrink:0}}>
                         {pill.label}
                       </span>
                     </div>
-                    {!isMe && (
-                      <div style={{marginTop:'10px'}}>
-                        <button onClick={() => handleRejoindre(s)}
-                          style={{width:'100%',padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
-                          🎮 Je rejoins
-                        </button>
+
+                    {/* Genres + habitudes */}
+                    {(genres.length > 0 || habits) && (
+                      <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'6px'}}>
+                        {genres.map((g,i) => (
+                          <span key={i} style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>
+                            {g}
+                          </span>
+                        ))}
+                        {habits && (
+                          <span style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>
+                            {habits.timeLabel}{habits.isWeekend ? ' · Week-end' : ''}
+                          </span>
+                        )}
                       </div>
+                    )}
+
+                    {/* Top 5 jeux */}
+                    {top5.length > 0 && (
+                      <div style={{display:'flex',gap:'3px',flexWrap:'wrap',marginBottom:'8px'}}>
+                        {top5.map((g,i) => (
+                          <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 6px',borderRadius:'6px',background:platformColors[g.platform]?.bg||'#333'}}>
+                            <span style={{color:platformColors[g.platform]?.color||'#fff',display:'flex',alignItems:'center'}}>
+                              <PlatformLogo platform={g.platform} size={9}/>
+                            </span>
+                            <span style={{fontSize:'9px',color:platformColors[g.platform]?.color||'#fff',fontWeight:'500',opacity:0.9}}>
+                              {g.game_name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Bouton Je rejoins */}
+                    {!isMe && (
+                      <button onClick={(e) => { e.stopPropagation(); handleRejoindre(s) }}
+                        style={{width:'100%',padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+                        🎮 Je rejoins
+                      </button>
                     )}
                   </div>
                 )
@@ -346,35 +394,27 @@ export default function Feed({ user, profile }) {
                 Potes sans l'app
               </div>
               {filteredContacts.map(c => (
-                <div key={c.id} style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',marginBottom:'8px'}}
-                    onClick={() => setSelectedContact(c)}>
-                    <div style={{flexShrink:0}}>
-                      <div style={{width:'38px',height:'38px',borderRadius:'50%',background:getColor(c.contact_name),color:getTextColor(c.contact_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',border:'1.5px dashed #ddd'}}>
-                        {getInitials(c.contact_name)}
-                      </div>
-                    </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:'13px',fontWeight:'600',color:'#888'}}>{c.contact_name}</div>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginTop:'4px'}}>
-                        {getPlatformTags(c).slice(0,2).map((t,i) => (
-                          <div key={i} style={{display:'inline-flex',alignItems:'center',border:`1px solid ${t.border}`,borderRadius:'6px',overflow:'hidden'}}>
-                            <span style={{fontSize:'9px',fontWeight:'700',padding:'2px 5px',background:t.bg,color:t.color}}>{t.plt}</span>
-                            <span style={{fontSize:'10px',fontWeight:'500',padding:'2px 6px 2px 4px',color:'#444'}}>{t.label}</span>
-                          </div>
-                        ))}
-                        {getPlatformTags(c).length > 2 && (
-                          <span style={{fontSize:'10px',color:'#aaa',padding:'2px 4px'}}>+{getPlatformTags(c).length - 2}</span>
-                        )}
-                      </div>
-                    </div>
-                    <span style={{fontSize:'10px',color:'#bbb',padding:'2px 7px',borderRadius:'20px',border:'1px dashed #ddd',whiteSpace:'nowrap',flexShrink:0}}>
-                      Sans app
-                    </span>
+                <div key={c.id} style={{padding:'10px 16px',borderBottom:'1px solid #f5f5f5',display:'flex',alignItems:'center',gap:'10px',cursor:'pointer'}}
+                  onClick={() => setSelectedContact(c)}>
+                  <div style={{width:'36px',height:'36px',borderRadius:'50%',background:getColor(c.contact_name),color:getTextColor(c.contact_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',fontWeight:'700',border:'1.5px dashed #ddd',flexShrink:0}}>
+                    {getInitials(c.contact_name)}
                   </div>
-                  <button onClick={() => handleInviterContact(c)}
-                    style={{width:'100%',padding:'8px',borderRadius:'10px',background:'#f5f5f5',color:'#555',border:'none',fontSize:'12px',fontWeight:'600',cursor:'pointer',fontFamily:'inherit'}}>
-                    📲 Inviter sur GamerLink
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:'13px',fontWeight:'600',color:'#888'}}>{c.contact_name}</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginTop:'3px'}}>
+                      {getPlatformTags(c).slice(0,2).map((t,i) => (
+                        <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 6px',borderRadius:'6px',background:platformColors[t.plt]?.bg||'#eee'}}>
+                          <span style={{color:platformColors[t.plt]?.color||'#fff',display:'flex',alignItems:'center'}}>
+                            <PlatformLogo platform={t.plt} size={9}/>
+                          </span>
+                          <span style={{fontSize:'9px',color:platformColors[t.plt]?.color||'#fff',fontWeight:'500'}}>{t.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); handleInviterContact(c) }}
+                    style={{fontSize:'10px',color:'#888',background:'#f5f5f5',border:'1px solid #eee',padding:'4px 8px',borderRadius:'20px',cursor:'pointer',fontFamily:'inherit',fontWeight:'600',whiteSpace:'nowrap',flexShrink:0}}>
+                    Inviter
                   </button>
                 </div>
               ))}

@@ -16,7 +16,8 @@ export default async function handler(req, res) {
         hours_recent: Math.round(g.playtime_2weeks / 60 * 10) / 10,
         hours_total: Math.round(g.playtime_forever / 60),
         appid: g.appid,
-        last_played: new Date().toISOString()
+        last_played: new Date().toISOString(),
+        cover_url: `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/capsule_sm_120.jpg`
       }))
       return res.status(200).json({ games })
     }
@@ -34,7 +35,8 @@ export default async function handler(req, res) {
       .map(g => ({
         name: g.name,
         hours: Math.round(g.playtime_forever / 60),
-        appid: g.appid
+        appid: g.appid,
+        cover_url: `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/capsule_sm_120.jpg`
       }))
       .sort((a, b) => b.hours - a.hours)
       .slice(0, 20)

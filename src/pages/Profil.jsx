@@ -66,9 +66,15 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
   const selectGame = async (game) => {
     setNewGame(game.name)
     setGameSuggestions([])
+    const coverUrl = game.cover?.url
+      ? game.cover.url.replace('t_thumb', 't_cover_small')
+      : null
     await supabase.from('user_games').upsert({
-      user_id: user.id, game_name: game.name, platform: newPlatform,
-      last_played: new Date().toISOString()
+      user_id: user.id,
+      game_name: game.name,
+      platform: newPlatform,
+      last_played: new Date().toISOString(),
+      cover_url: coverUrl
     }, { onConflict: 'user_id,game_name' })
     setNewGame('')
     setShowAddGame(false)
@@ -82,27 +88,35 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     setSteamResult(null)
     try {
       await supabase.from('profiles').update({ steam_id: steamId }).eq('id', user.id)
+
       const resGames = await fetch(`/api/steam?steamid=${steamId}`)
       const dataGames = await resGames.json()
       if (dataGames.games && dataGames.games.length > 0) {
         for (const g of dataGames.games) {
           await supabase.from('user_games').upsert({
             user_id: user.id, game_name: g.name, platform: 'Steam',
-            hours_played: Math.floor(g.hours || 0), last_played: new Date().toISOString()
+            hours_played: Math.floor(g.hours || 0),
+            last_played: new Date().toISOString(),
+            cover_url: g.cover_url
           }, { onConflict: 'user_id,game_name' })
         }
       }
+
       const resRecent = await fetch(`/api/steam?steamid=${steamId}&type=recent`)
       const dataRecent = await resRecent.json()
       if (dataRecent.games && dataRecent.games.length > 0) {
         for (const g of dataRecent.games) {
           await supabase.from('user_games').upsert({
             user_id: user.id, game_name: g.name, platform: 'Steam',
-            hours_played: g.hours_total, last_played: g.last_played
+            hours_played: g.hours_total,
+            last_played: g.last_played,
+            cover_url: g.cover_url
           }, { onConflict: 'user_id,game_name' })
         }
       }
+
       await fetchMyGames()
+
       const resFriends = await fetch(`/api/steam-friends?steamid=${steamId}`)
       const dataFriends = await resFriends.json()
       let newFriends = 0
@@ -203,12 +217,8 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
               </div>
               <button
                 onClick={() => {
-                  if (p.action) {
-                    p.action()
-                  } else if (p.tagKey) {
-                    setEditingTag(p.tagKey)
-                    setTagValue(p.connected || '')
-                  }
+                  if (p.action) p.action()
+                  else if (p.tagKey) { setEditingTag(p.tagKey); setTagValue(p.connected || '') }
                 }}
                 disabled={p.key === 'steam' && steamImporting}
                 style={{fontSize:'11px',padding:'5px 12px',borderRadius:'20px',border:'1px solid #eee',background:'#fff',color:'#111',cursor:'pointer',fontFamily:'inherit',fontWeight:'600',opacity:(p.key==='steam'&&steamImporting)?0.6:1}}>
@@ -216,26 +226,17 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
               </button>
             </div>
 
-            {/* Champ de saisie manuelle PSN/Xbox/Epic */}
             {p.tagKey && editingTag === p.tagKey && (
               <div style={{padding:'0 14px 12px',display:'flex',gap:'6px'}}>
-                <input
-                  type="text"
-                  placeholder={p.placeholder}
-                  value={tagValue}
+                <input type="text" placeholder={p.placeholder} value={tagValue}
                   onChange={e => setTagValue(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && saveTag(p.tagKey, tagValue)}
                   autoFocus
-                  style={{flex:1,padding:'8px 12px',border:'1px solid #eee',borderRadius:'10px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none'}}
-                />
+                  style={{flex:1,padding:'8px 12px',border:'1px solid #eee',borderRadius:'10px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none'}}/>
                 <button onClick={() => saveTag(p.tagKey, tagValue)}
-                  style={{padding:'8px 14px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'}}>
-                  ✓
-                </button>
+                  style={{padding:'8px 14px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'}}>✓</button>
                 <button onClick={() => setEditingTag(null)}
-                  style={{padding:'8px 10px',borderRadius:'10px',background:'#f5f5f5',color:'#888',border:'none',fontSize:'12px',cursor:'pointer',fontFamily:'inherit'}}>
-                  ✕
-                </button>
+                  style={{padding:'8px 10px',borderRadius:'10px',background:'#f5f5f5',color:'#888',border:'none',fontSize:'12px',cursor:'pointer',fontFamily:'inherit'}}>✕</button>
               </div>
             )}
 
@@ -249,7 +250,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
                 <div style={{fontSize:'12px',fontWeight:'700',color:'#27500A'}}>
                   {steamResult.friends > 0
                     ? `🎉 ${steamResult.friends} pote${steamResult.friends > 1 ? 's' : ''} trouvé${steamResult.friends > 1 ? 's' : ''} !`
-                    : '😕 Aucun pote Steam sur GamerLink pour l\'instant'}
+                    : '😕 Aucun pote Steam sur WhoPlays pour l\'instant'}
                 </div>
                 <div style={{fontSize:'10px',color:'#639922',marginTop:'2px'}}>
                   {steamResult.friendsTotal} amis scannés · Jeux importés ✓
@@ -331,11 +332,16 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
 
         {myGames.map(g => (
           <div key={g.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'9px 14px',borderTop:'1px solid #f0f0f0'}}>
-            <div style={{width:'32px',height:'32px',borderRadius:'8px',background:platformColors[g.platform]?.bg||'#eee',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <span style={{color:platformColors[g.platform]?.color||'#888',display:'flex',alignItems:'center'}}>
-                <PlatformLogo platform={g.platform} size={16}/>
-              </span>
-            </div>
+            {g.cover_url ? (
+              <img src={g.cover_url} alt={g.game_name}
+                style={{width:'32px',height:'32px',borderRadius:'8px',objectFit:'cover',flexShrink:0}}/>
+            ) : (
+              <div style={{width:'32px',height:'32px',borderRadius:'8px',background:platformColors[g.platform]?.bg||'#eee',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <span style={{color:platformColors[g.platform]?.color||'#888',display:'flex',alignItems:'center'}}>
+                  <PlatformLogo platform={g.platform} size={16}/>
+                </span>
+              </div>
+            )}
             <div style={{flex:1}}>
               <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.game_name}</div>
               <div style={{fontSize:'10px',color:'#aaa',marginTop:'1px'}}>

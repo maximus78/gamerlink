@@ -189,19 +189,15 @@ export default function Status({ user, profile }) {
 
   const fetchGroupMessages = async () => {
     const { data } = await supabase
-      .from('group_messages')
-      .select('*')
-      .eq('group_id', groupId)
-      .order('created_at', { ascending: true })
-      .limit(50)
+      .from('group_messages').select('*').eq('group_id', groupId)
+      .order('created_at', { ascending: true }).limit(50)
     setMessages(data || [])
   }
 
   const sendMessage = async (text) => {
     if (!text.trim()) return
     await supabase.from('group_messages').insert({
-      group_id: groupId,
-      user_id: user.id,
+      group_id: groupId, user_id: user.id,
       user_name: profile?.name?.split(' ')[0] || 'Moi',
       message: text.trim()
     })
@@ -254,8 +250,7 @@ export default function Status({ user, profile }) {
     const gameName = selectedGame?.game_name || 'Jeu libre'
     await supabase.from('statuses').insert({
       user_id: user.id, type: status, game: gameName,
-      expires_at: getExpiry(),
-      invited_friends: invitedFriends
+      expires_at: getExpiry(), invited_friends: invitedFriends
     })
     await supabase.from('status_history').insert({
       user_id: user.id, game: gameName, type: status,
@@ -380,13 +375,13 @@ export default function Status({ user, profile }) {
             </div>
           )}
 
-          {/* Qui joue avec moi */}
-          {status !== 'off' && friends.length > 0 && (
+          {/* Qui joue avec moi — potes app + sans app */}
+          {status !== 'off' && allPotes.length > 0 && (
             <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
               <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Qui joue avec moi ?</div>
               <div style={{padding:'10px 14px',display:'flex',gap:'8px',flexWrap:'wrap'}}>
-                {friends.map(f => (
-                  <PoteChip key={f.id} pote={{...f, type:'app'}}
+                {allPotes.map(f => (
+                  <PoteChip key={f.id} pote={f}
                     selected={invitedFriends.some(i => i.id === f.id)}
                     onSelect={() => toggleInvitedFriend(f)}
                     getColor={getColor} getTextColor={getTextColor} getInitials={getInitials}/>

@@ -130,6 +130,9 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
 
   const connectDiscord = () => { window.location.href = '/api/discord-auth' }
 
+  // 🎮 Connexion Xbox via OpenXBL
+  const connectXbox = () => { window.location.href = '/api/xbox-auth' }
+
   const saveTag = async (key, value) => {
     await supabase.from('profiles').update({ [key]: value }).eq('id', user.id)
     setEditingTag(null)
@@ -157,8 +160,8 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
   const platforms_list = [
     { key: 'steam', label: 'Steam', bg: '#1b2838', color: '#c7d5e0', action: connectSteam, connected: profile?.steam_id },
     { key: 'discord', label: 'Discord', bg: '#5865F2', color: '#fff', action: connectDiscord, connected: profile?.discord_id, subtitle: profile?.discord_username },
+    { key: 'xbox', label: 'Xbox', bg: '#107c10', color: '#fff', action: connectXbox, connected: profile?.xbox_gamertag, subtitle: profile?.xbox_gamertag, gamerscore: profile?.xbox_gamerscore },
     { key: 'psn', label: 'PS', bg: '#003087', color: '#fff', tagKey: 'psn_tag', placeholder: 'ex: MonPseudoPS', connected: profile?.psn_tag },
-    { key: 'xbox', label: 'Xbox', bg: '#107c10', color: '#fff', tagKey: 'xbox_tag', placeholder: 'ex: MonGamertag', connected: profile?.xbox_tag },
     { key: 'epic', label: 'Epic', bg: '#2d2d2d', color: '#fff', tagKey: 'epic_tag', placeholder: 'ex: MonEpicTag', connected: profile?.epic_tag },
   ]
 
@@ -196,7 +199,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
               <div style={{flex:1}}>
                 <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{p.label}</div>
                 <div style={{fontSize:'10px',color:'#bbb',marginTop:'1px'}}>
-                  {p.connected ? `✓ ${p.subtitle || p.connected}` : 'Non connecté'}
+                  {p.connected ? `✓ ${p.subtitle || p.connected}${p.gamerscore ? ` · ${p.gamerscore} G` : ''}` : 'Non connecté'}
                 </div>
               </div>
               <button

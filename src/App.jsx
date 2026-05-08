@@ -39,11 +39,48 @@ export default function App() {
 
   const fetchProfile = async (userId, authUser) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+
+    // Mettre à jour avatar Google
     const avatarUrl = authUser?.user_metadata?.avatar_url
     if (avatarUrl && data && data.avatar_url !== avatarUrl) {
       await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', userId)
       if (data) data.avatar_url = avatarUrl
     }
+
+    // Gérer retour Discord OAuth
+    const urlParams = new URLSearchParams(window.location.search)
+    const discordId = urlParams.get('discord_id')
+    const discordUsername = urlParams.get('discord_username')
+    const discordFriends = urlParams.get('discord_friends')
+
+    if (discordId && data) {
+      await supabase.from('profiles').update({
+        discord_id: discordId,
+        discord_username: discordUsername,
+      }).eq('id', userId)
+      data.discord_id = discordId
+      data.discord_username = discordUsername
+
+      if (discordFriends) {
+        const ids = discordFriends.split(',').filter(Boolean)
+        if (ids.length > 0) {
+          const { data: matches } = await supabase
+            .from('profiles').select('id, discord_id').in('discord_id', ids)
+          if (matches) {
+            for (const match of matches) {
+              await supabase.from('friends').upsert({
+                user_id: userId, friend_id: match.id
+              }, { onConflict: 'user_id,friend_id' })
+              await supabase.from('friends').upsert({
+                user_id: match.id, friend_id: userId
+              }, { onConflict: 'user_id,friend_id' })
+            }
+          }
+        }
+      }
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
     setProfile(data)
     setLoading(false)
   }

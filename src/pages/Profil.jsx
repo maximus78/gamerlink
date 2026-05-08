@@ -35,10 +35,8 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     setSteamResult(null)
 
     try {
-      // 1. Sauvegarder le SteamID
       await supabase.from('profiles').update({ steam_id: steamId }).eq('id', user.id)
 
-      // 2. Importer les jeux via proxy Vercel
       const resGames = await fetch(`/api/steam?steamid=${steamId}`)
       const dataGames = await resGames.json()
       if (dataGames.games && dataGames.games.length > 0) {
@@ -51,17 +49,13 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
         await fetchMyGames()
       }
 
-      // 3. Importer les amis via proxy Vercel
       const resFriends = await fetch(`/api/steam-friends?steamid=${steamId}`)
       const dataFriends = await resFriends.json()
 
       let newFriends = 0
       if (dataFriends.friends && dataFriends.friends.length > 0) {
         const { data: matches } = await supabase
-          .from('profiles')
-          .select('id, name, steam_id')
-          .in('steam_id', dataFriends.friends)
-
+          .from('profiles').select('id, name, steam_id').in('steam_id', dataFriends.friends)
         if (matches && matches.length > 0) {
           for (const match of matches) {
             if (match.id === user.id) continue
@@ -77,11 +71,14 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
       }
 
       setSteamResult({ friends: newFriends, friendsTotal: dataFriends.friends?.length || 0 })
-
     } catch(e) {
       alert('Erreur : ' + e.message)
     }
     setSteamImporting(false)
+  }
+
+  const connectDiscord = () => {
+    window.location.href = '/api/discord-auth'
   }
 
   const handleAddGame = async () => {
@@ -117,6 +114,9 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
         <div style={{flex:1}}>
           <div style={{fontSize:'16px',fontWeight:'700',color:'#111'}}>{profile?.name}</div>
           <div style={{fontSize:'12px',color:'#aaa',marginTop:'2px'}}>📱 {profile?.phone}</div>
+          {profile?.discord_username && (
+            <div style={{fontSize:'11px',color:'#5865F2',marginTop:'2px'}}>Discord : {profile.discord_username}</div>
+          )}
         </div>
       </div>
 
@@ -135,7 +135,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
             <div style={{flex:1}}>
               <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>Steam</div>
               <div style={{fontSize:'10px',color:'#bbb',marginTop:'1px'}}>
-                {profile?.steam_id ? `✓ Connecté` : 'Non connecté'}
+                {profile?.steam_id ? '✓ Connecté' : 'Non connecté'}
               </div>
             </div>
             <button onClick={connectSteam} disabled={steamImporting}
@@ -164,7 +164,24 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
           )}
         </div>
 
-        {/* Autres plateformes */}
+        {/* Discord */}
+        <div style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 14px',borderTop:'1px solid #f0f0f0'}}>
+          <div style={{width:'36px',height:'36px',borderRadius:'8px',background:'#5865F2',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <span style={{fontSize:'9px',fontWeight:'700',color:'#fff'}}>Discord</span>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>Discord</div>
+            <div style={{fontSize:'10px',color:'#bbb',marginTop:'1px'}}>
+              {profile?.discord_id ? `✓ ${profile.discord_username || 'Connecté'}` : 'Non connecté'}
+            </div>
+          </div>
+          <button onClick={connectDiscord}
+            style={{fontSize:'11px',padding:'5px 12px',borderRadius:'20px',border:'1px solid #eee',background:'#fff',color:'#111',cursor:'pointer',fontFamily:'inherit',fontWeight:'600'}}>
+            {profile?.discord_id ? 'Resync' : '+ Connecter'}
+          </button>
+        </div>
+
+        {/* PSN + Xbox + Epic */}
         {[
           { key: 'psn', label: 'PSN', bg: '#003087', color: '#fff' },
           { key: 'xbox', label: 'Xbox', bg: '#107c10', color: '#fff' },

@@ -6,6 +6,8 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
   const [newGame, setNewGame] = useState('')
   const [newPlatform, setNewPlatform] = useState('Steam')
   const [showAddGame, setShowAddGame] = useState(false)
+  const [steamImporting, setSteamImporting] = useState(false)
+  const [steamResult, setSteamResult] = useState(null)
 
   const platforms = ['Steam', 'Xbox', 'PS', 'Epic', 'Discord']
 
@@ -24,6 +26,76 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
       .from('user_games').select('*').eq('user_id', user.id)
       .order('hours_played', { ascending: false })
     setMyGames(data || [])
+  }
+
+  const connectSteam = async () => {
+    const steamId = prompt('Entre ton Steam ID (ex: 76561199027066116)\nTrouve-le sur steamcommunity.com/id/tonpseudo')
+    if (!steamId) return
+    setSteamImporting(true)
+    setSteamResult(null)
+
+    try {
+      // 1. Sauvegarder le SteamID dans le profil
+      await supabase.from('profiles').update({ steam_id: steamId }).eq('id', user.id)
+
+      // 2. Importer les jeux
+      const resGames = await fetch(`https://steamcommunity.com/profiles/${steamId}/games/?tab=all&xml=1`)
+      const textGames = await resGames.text()
+      if (!textGames.includes('privacyMessage') && !textGames.includes('This profile is private')) {
+        const games = []
+        const gameBlockRegex = /<game>([\s\S]*?)<\/game>/g
+        let block
+        while ((block = gameBlockRegex.exec(textGames)) !== null) {
+          const content = block[1]
+          const nameMatch = content.match(/<name><!\[CDATA\[([^\]]+)\]\]><\/name>/)
+          if (!nameMatch) continue
+          const name = nameMatch[1].trim()
+          const hoursMatch = content.match(/<hoursOnRecord>([^<]+)<\/hoursOnRecord>/)
+          const hours = hoursMatch ? parseFloat(hoursMatch[1].replace(',', '.')) || 0 : 0
+          games.push({ name, hours })
+        }
+        games.sort((a, b) => b.hours - a.hours)
+        for (const g of games.slice(0, 10)) {
+          await supabase.from('user_games').upsert({
+            user_id: user.id, game_name: g.name, platform: 'Steam',
+            hours_played: Math.floor(g.hours), last_played: new Date().toISOString()
+          }, { onConflict: 'user_id,game_name' })
+        }
+        await fetchMyGames()
+      }
+
+      // 3. Importer les amis via proxy Vercel
+      const resFriends = await fetch(`/api/steam-friends?steamid=${steamId}`)
+      const dataFriends = await resFriends.json()
+
+      let newFriends = 0
+      if (dataFriends.friends && dataFriends.friends.length > 0) {
+        // Chercher les amis Steam qui sont sur GamerLink
+        const { data: matches } = await supabase
+          .from('profiles')
+          .select('id, name, steam_id')
+          .in('steam_id', dataFriends.friends)
+
+        if (matches && matches.length > 0) {
+          for (const match of matches) {
+            if (match.id === user.id) continue
+            await supabase.from('friends').upsert({
+              user_id: user.id, friend_id: match.id
+            }, { onConflict: 'user_id,friend_id' })
+            await supabase.from('friends').upsert({
+              user_id: match.id, friend_id: user.id
+            }, { onConflict: 'user_id,friend_id' })
+            newFriends++
+          }
+        }
+      }
+
+      setSteamResult({ friends: newFriends, friendsTotal: dataFriends.friends?.length || 0 })
+
+    } catch(e) {
+      alert('Erreur : ' + e.message)
+    }
+    setSteamImporting(false)
   }
 
   const importFromSteam = async () => {
@@ -105,11 +177,45 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
         <div style={{padding:'10px 14px',background:'#fafaf9'}}>
           <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Mes comptes</span>
         </div>
+
+        {/* Steam — spécial avec import amis */}
+        <div style={{borderTop:'1px solid #f0f0f0'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 14px'}}>
+            <div style={{width:'36px',height:'36px',borderRadius:'8px',background:'#1b2838',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <span style={{fontSize:'10px',fontWeight:'700',color:'#c7d5e0'}}>Steam</span>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>Steam</div>
+              <div style={{fontSize:'10px',color:'#bbb',marginTop:'1px'}}>
+                {profile?.steam_id ? `✓ Connecté · ${profile.steam_id.slice(0,8)}...` : 'Non connecté'}
+              </div>
+            </div>
+            <button onClick={connectSteam} disabled={steamImporting}
+              style={{fontSize:'11px',padding:'5px 12px',borderRadius:'20px',border:'1px solid #eee',background:'#fff',color:'#111',cursor:'pointer',fontFamily:'inherit',fontWeight:'600',opacity:steamImporting?0.6:1}}>
+              {steamImporting ? '...' : profile?.steam_id ? 'Resync' : '+ Connecter'}
+            </button>
+          </div>
+
+          {/* Résultat import Steam */}
+          {steamResult && (
+            <div style={{margin:'0 14px 12px',padding:'10px 12px',background:'#EAF3DE',borderRadius:'10px'}}>
+              <div style={{fontSize:'12px',fontWeight:'700',color:'#27500A'}}>
+                {steamResult.friends > 0
+                  ? `🎉 ${steamResult.friends} pote${steamResult.friends > 1 ? 's' : ''} trouvé${steamResult.friends > 1 ? 's' : ''} sur GamerLink !`
+                  : '😕 Aucun pote Steam sur GamerLink pour l\'instant'}
+              </div>
+              <div style={{fontSize:'10px',color:'#639922',marginTop:'2px'}}>
+                {steamResult.friendsTotal} amis Steam scannés · Jeux importés ✓
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Autres plateformes */}
         {[
-          { key: 'steam', label: 'Steam', bg: '#1b2838', color: '#c7d5e0', action: importFromSteam },
-          { key: 'psn', label: 'PSN', bg: '#003087', color: '#fff', action: null },
-          { key: 'xbox', label: 'Xbox', bg: '#107c10', color: '#fff', action: null },
-          { key: 'epic', label: 'Epic', bg: '#2d2d2d', color: '#fff', action: null },
+          { key: 'psn', label: 'PSN', bg: '#003087', color: '#fff' },
+          { key: 'xbox', label: 'Xbox', bg: '#107c10', color: '#fff' },
+          { key: 'epic', label: 'Epic', bg: '#2d2d2d', color: '#fff' },
         ].map(p => (
           <div key={p.key} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 14px',borderTop:'1px solid #f0f0f0'}}>
             <div style={{width:'36px',height:'36px',borderRadius:'8px',background:p.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -117,13 +223,11 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
             </div>
             <div style={{flex:1}}>
               <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{p.label}</div>
-              <div style={{fontSize:'10px',color:'#bbb',marginTop:'1px'}}>
-                {profile?.[`${p.key}_id`] ? '✓ Connecté' : 'Non connecté'}
-              </div>
+              <div style={{fontSize:'10px',color:'#bbb',marginTop:'1px'}}>Bientôt disponible</div>
             </div>
-            <button onClick={p.action || (() => alert('Bientôt disponible'))}
-              style={{fontSize:'11px',padding:'5px 12px',borderRadius:'20px',border:'1px solid #eee',background:'#fff',color:'#111',cursor:'pointer',fontFamily:'inherit',fontWeight:'600'}}>
-              {profile?.[`${p.key}_id`] ? 'Gérer' : '+ Connecter'}
+            <button onClick={() => alert('Bientôt disponible')}
+              style={{fontSize:'11px',padding:'5px 12px',borderRadius:'20px',border:'1px solid #eee',background:'#fff',color:'#bbb',cursor:'pointer',fontFamily:'inherit',fontWeight:'600'}}>
+              + Connecter
             </button>
           </div>
         ))}

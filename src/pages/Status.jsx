@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
 export default function Status({ user, profile }) {
@@ -9,11 +9,30 @@ export default function Status({ user, profile }) {
   const [currentStatus, setCurrentStatus] = useState(null)
   const [myGames, setMyGames] = useState([])
   const [viewers, setViewers] = useState(0)
+  const [messages, setMessages] = useState([])
+  const [newMessage, setNewMessage] = useState('')
+  const messagesEndRef = useRef(null)
 
   useEffect(() => {
     fetchCurrentStatus()
     fetchMyGames()
   }, [])
+
+  useEffect(() => {
+    if (currentStatus) {
+      fetchMessages()
+      const channel = supabase
+        .channel('chat-' + currentStatus.id)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'session_messages', filter: `status_id=eq.${currentStatus.id}` },
+          () => fetchMessages())
+        .subscribe()
+      return () => supabase.removeChannel(channel)
+    }
+  }, [currentStatus?.id])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   const fetchMyGames = async () => {
     const { data } = await supabase
@@ -39,6 +58,26 @@ export default function Status({ user, profile }) {
     setViewers(count || 0)
   }
 
+  const fetchMessages = async () => {
+    if (!currentStatus) return
+    const { data } = await supabase
+      .from('session_messages')
+      .select('*, profiles(name, avatar_url)')
+      .eq('status_id', currentStatus.id)
+      .order('created_at', { ascending: true })
+    setMessages(data || [])
+  }
+
+  const sendMessage = async (text) => {
+    if (!text.trim() || !currentStatus) return
+    await supabase.from('session_messages').insert({
+      status_id: currentStatus.id,
+      user_id: user.id,
+      message: text.trim()
+    })
+    setNewMessage('')
+  }
+
   const getExpiry = () => {
     const now = new Date()
     if (when === 'now') now.setHours(now.getHours() + 2)
@@ -60,25 +99,14 @@ export default function Status({ user, profile }) {
     }
     setLoading(true)
     await supabase.from('statuses').delete().eq('user_id', user.id)
-
     const gameName = selectedGame?.game_name || 'Jeu libre'
-
     await supabase.from('statuses').insert({
-      user_id: user.id,
-      type: status,
-      game: gameName,
-      expires_at: getExpiry()
+      user_id: user.id, type: status, game: gameName, expires_at: getExpiry()
     })
-
-    // Archiver pour les habitudes — silencieux
     await supabase.from('status_history').insert({
-      user_id: user.id,
-      game: gameName,
-      type: status,
-      hour: new Date().getHours(),
-      day_of_week: new Date().getDay()
+      user_id: user.id, game: gameName, type: status,
+      hour: new Date().getHours(), day_of_week: new Date().getDay()
     })
-
     await fetchCurrentStatus()
     setLoading(false)
   }
@@ -87,6 +115,7 @@ export default function Status({ user, profile }) {
     await supabase.from('statuses').delete().eq('user_id', user.id)
     setCurrentStatus(null)
     setStatus('off')
+    setMessages([])
   }
 
   const handleExtend = async () => {
@@ -96,6 +125,8 @@ export default function Status({ user, profile }) {
     await supabase.from('statuses').update({ expires_at: newExpiry.toISOString() }).eq('id', currentStatus.id)
     await fetchCurrentStatus()
   }
+
+  const getInitials = (name) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2) : '?'
 
   const whenOptions = [
     { key: 'now', label: 'Maintenant' },
@@ -110,10 +141,13 @@ export default function Status({ user, profile }) {
     { key: 'off', label: 'Pas dispo', icon: '✕', bg: '#f5f5f5', color: '#999' },
   ]
 
+  const quickReplies = ["J'arrive 🎮", "2 min ⏱", "Go ! 🚀", "Pas dispo ❌"]
+
   // POST-BROADCAST — dashboard vivant
   if (currentStatus) return (
     <div style={{padding:'16px'}}>
 
+      {/* Statut actif */}
       <div style={{background:'#f0f9f0',border:'1px solid #d4edbb',borderRadius:'16px',padding:'16px',marginBottom:'14px'}}>
         <div style={{fontSize:'11px',fontWeight:'700',color:'#639922',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'6px'}}>
           Statut actif
@@ -126,10 +160,10 @@ export default function Status({ user, profile }) {
         </div>
       </div>
 
-      {/* Aperçu feed — ce que tes potes voient */}
+      {/* Aperçu feed */}
       <div style={{background:'#fff',border:'1px solid #eee',borderRadius:'14px',padding:'12px 14px',marginBottom:'14px'}}>
         <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'10px'}}>
-          Ce que tes potes voient dans Qui joue
+          Ce que tes potes voient
         </div>
         <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
           {profile?.avatar_url ? (
@@ -155,7 +189,8 @@ export default function Status({ user, profile }) {
         </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'12px'}}>
+      {/* Boutons actions */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'14px'}}>
         <button onClick={handleExtend}
           style={{padding:'12px',borderRadius:'12px',background:'#fff',border:'1px solid #eee',fontSize:'13px',fontWeight:'600',color:'#111',cursor:'pointer',fontFamily:'inherit'}}>
           +30 min
@@ -166,15 +201,74 @@ export default function Status({ user, profile }) {
         </button>
       </div>
 
-      <div style={{background:'#fafaf9',border:'1px solid #eee',borderRadius:'14px',padding:'12px',marginBottom:'12px'}}>
-        <div style={{fontSize:'11px',color:'#aaa',marginBottom:'8px',fontWeight:'600'}}>Réponses rapides</div>
-        <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-          {["J'arrive 🎮", "2 min ⏱", "Go ! 🚀", "Pas dispo ❌"].map(r => (
-            <button key={r}
-              style={{padding:'6px 12px',borderRadius:'20px',background:'#fff',border:'1px solid #eee',fontSize:'11px',fontWeight:'600',color:'#111',cursor:'pointer',fontFamily:'inherit'}}>
+      {/* CHAT PRÉ-SESSION */}
+      <div style={{border:'1px solid #eee',borderRadius:'14px',overflow:'hidden',marginBottom:'12px'}}>
+        <div style={{padding:'10px 14px',background:'#fafaf9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Chat session</span>
+          {messages.length > 0 && (
+            <span style={{fontSize:'10px',color:'#bbb'}}>{messages.length} message{messages.length > 1 ? 's' : ''}</span>
+          )}
+        </div>
+
+        {/* Messages */}
+        <div style={{maxHeight:'180px',overflowY:'auto',padding:'8px 12px',background:'#fff'}}>
+          {messages.length === 0 ? (
+            <div style={{textAlign:'center',padding:'16px 0',fontSize:'11px',color:'#bbb'}}>
+              Personne n'a encore écrit — lance la discussion !
+            </div>
+          ) : (
+            messages.map((m, i) => {
+              const isMe = m.user_id === user.id
+              const name = m.profiles?.name?.split(' ')[0] || '?'
+              const avatar = m.profiles?.avatar_url
+              return (
+                <div key={m.id} style={{display:'flex',gap:'6px',marginBottom:'8px',flexDirection:isMe?'row-reverse':'row'}}>
+                  {!isMe && (
+                    avatar ? (
+                      <img src={avatar} alt={name} style={{width:'24px',height:'24px',borderRadius:'50%',objectFit:'cover',flexShrink:0,marginTop:'2px'}}/>
+                    ) : (
+                      <div style={{width:'24px',height:'24px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:'700',color:'#27500A',flexShrink:0,marginTop:'2px'}}>
+                        {getInitials(name)}
+                      </div>
+                    )
+                  )}
+                  <div style={{maxWidth:'75%'}}>
+                    {!isMe && <div style={{fontSize:'9px',color:'#aaa',marginBottom:'2px',fontWeight:'600'}}>{name}</div>}
+                    <div style={{padding:'7px 10px',borderRadius:isMe?'12px 12px 4px 12px':'12px 12px 12px 4px',background:isMe?'#111':'#f5f5f5',color:isMe?'#fff':'#111',fontSize:'12px',lineHeight:'1.4'}}>
+                      {m.message}
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+          <div ref={messagesEndRef}/>
+        </div>
+
+        {/* Réponses rapides */}
+        <div style={{padding:'8px 12px',borderTop:'1px solid #f5f5f5',background:'#fafaf9',display:'flex',gap:'6px',flexWrap:'wrap'}}>
+          {quickReplies.map(r => (
+            <button key={r} onClick={() => sendMessage(r)}
+              style={{padding:'5px 10px',borderRadius:'20px',background:'#fff',border:'1px solid #eee',fontSize:'11px',fontWeight:'600',color:'#111',cursor:'pointer',fontFamily:'inherit'}}>
               {r}
             </button>
           ))}
+        </div>
+
+        {/* Champ message libre */}
+        <div style={{padding:'8px 12px',borderTop:'1px solid #f5f5f5',display:'flex',gap:'8px',background:'#fff'}}>
+          <input
+            type="text"
+            placeholder="Écris un message..."
+            value={newMessage}
+            onChange={e => setNewMessage(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && sendMessage(newMessage)}
+            style={{flex:1,padding:'8px 12px',border:'1px solid #eee',borderRadius:'20px',fontSize:'12px',color:'#111',fontFamily:'inherit',outline:'none'}}
+          />
+          <button onClick={() => sendMessage(newMessage)} disabled={!newMessage.trim()}
+            style={{padding:'8px 14px',borderRadius:'20px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',opacity:!newMessage.trim()?0.4:1}}>
+            →
+          </button>
         </div>
       </div>
 
@@ -188,7 +282,6 @@ export default function Status({ user, profile }) {
   // PRÉ-BROADCAST
   return (
     <div>
-      {/* Statut */}
       <div style={{margin:'12px 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
         <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>
           Je suis...
@@ -208,7 +301,6 @@ export default function Status({ user, profile }) {
         </div>
       </div>
 
-      {/* Jeux */}
       {status !== 'off' && (
         <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
           <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>
@@ -237,7 +329,6 @@ export default function Status({ user, profile }) {
         </div>
       )}
 
-      {/* Quand */}
       {status !== 'off' && (
         <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
           <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>
@@ -255,7 +346,6 @@ export default function Status({ user, profile }) {
         </div>
       )}
 
-      {/* Bouton broadcast */}
       <div style={{padding:'0 16px 16px'}}>
         <button onClick={handleBroadcast} disabled={loading}
           style={{width:'100%',padding:'14px',borderRadius:'12px',background:'#111',color:'#fff',border:'none',fontSize:'13px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',opacity:loading?0.7:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>

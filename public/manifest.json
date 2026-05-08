@@ -1,17 +1,23 @@
 {
-  "name": "GamerLink",
-  "short_name": "GamerLink",
-  "description": "Retrouve tes potes gamers et rejoins leurs sessions en temps réel",
+  "name": "WhoPlays",
+  "short_name": "WhoPlays",
+  "description": "Vois en temps réel à quoi jouent tes potes et rejoins leurs sessions",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f0efe8",
+  "background_color": "#111111",
   "theme_color": "#111111",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/vite.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

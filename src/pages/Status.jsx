@@ -14,6 +14,7 @@ export default function Status({ user, profile }) {
   const [friends, setFriends] = useState([])
   const [contacts, setContacts] = useState([])
   const [selectedFriend, setSelectedFriend] = useState(null)
+  const [selectedDefiGame, setSelectedDefiGame] = useState(null)
   const [currentDefis, setCurrentDefis] = useState([])
   const [activeTab, setActiveTab] = useState('statut')
   const [groupId] = useState(() => `group-${user.id}`)
@@ -28,7 +29,7 @@ export default function Status({ user, profile }) {
   ]
 
   const hardcodedDefis = {
-    'warzone': ["Je fais plus de kills que toi ce soir 🎯","On finit top 3 ensemble ou on arrête 💀","Je te bats en Gulag — t'as peur ? 😈","On fait une soirée sans mourir au premier cercle 😂"],
+    'warzone': ["Je fais plus de kills que toi ce soir 🎯","On finit top 3 ensemble ou on arrête 💀","Je te bats en Gulag — t'as peur ? 😈","Une soirée sans mourir au premier cercle 😂"],
     'rocket league': ["On passe Diamant 2 ce soir ou on sleep pas 🚀","Je t'affronte en 1v1 — perdant reste en Or 😬","Best of 3 — perdant change de pseudo 24h 😅","On finit la saison en ranked ensemble 🏆"],
     'valorant': ["On monte en Platine ce soir 💎","Je fais plus d'headshots que toi 🎯","On clutch ensemble ou on rage quit 😤","Premier à 20 kills gagne 🍟"],
     'cs2': ["Je fais plus de 20 kills ce soir 💣","On finit le match avec un ratio positif 📈","Je te bats en duel — 1v1 sur Aim Map 🔫","On sort de Silver ce soir ou jamais 😭"],
@@ -71,7 +72,6 @@ export default function Status({ user, profile }) {
   }, [])
 
   useEffect(() => {
-    // Abonnement chat groupe permanent
     const channel = supabase
       .channel('group-chat-' + groupId)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_messages', filter: `group_id=eq.${groupId}` },
@@ -153,7 +153,7 @@ export default function Status({ user, profile }) {
 
   const lancerDefi = (defi) => {
     const myName = profile?.name?.split(' ')[0] || 'Ton pote'
-    const game = currentStatus?.game || myGames[0]?.game_name || 'ce jeu'
+    const game = selectedDefiGame?.game_name || currentStatus?.game || myGames[0]?.game_name || 'ce jeu'
     const phone = selectedFriend?.phone || selectedFriend?.contact_phone || manualPhone || ''
     const text = `🎮 ${myName} te défie sur ${game} — "${defi}"\n\nRéponds sur WhoPlays : ${window.location.origin}`
     window.open(`sms:${phone}?body=${encodeURIComponent(text)}`)
@@ -164,7 +164,7 @@ export default function Status({ user, profile }) {
   const inviterAuChat = (friend) => {
     const myName = profile?.name?.split(' ')[0] || 'Ton pote'
     const game = currentStatus?.game || myGames[0]?.game_name || 'ce soir'
-    const phone = friend?.phone || friend?.contact_phone || manualPhone || ''
+    const phone = friend?.phone || friend?.contact_phone || ''
     const text = `${myName} t'invite à jouer à ${game} — rejoins la session : ${window.location.origin}`
     window.open(`sms:${phone}?body=${encodeURIComponent(text)}`)
   }
@@ -184,7 +184,6 @@ export default function Status({ user, profile }) {
       setCurrentStatus(null)
       return
     }
-    if (!selectedGame && myGames.length > 0) { alert('Choisis un jeu !'); return }
     setLoading(true)
     await supabase.from('statuses').delete().eq('user_id', user.id)
     const gameName = selectedGame?.game_name || 'Jeu libre'
@@ -203,6 +202,7 @@ export default function Status({ user, profile }) {
     await supabase.from('statuses').delete().eq('user_id', user.id)
     setCurrentStatus(null)
     setStatus('off')
+    setSelectedGame(null)
   }
 
   const handleExtend = async () => {
@@ -237,6 +237,35 @@ export default function Status({ user, profile }) {
     ...contacts.map(c => ({ id: c.id, name: c.contact_name, phone: c.contact_phone, type: 'contact' }))
   ]
 
+  // Composant liste de jeux réutilisable
+  const GameList = ({ selectedId, onSelect }) => (
+    <div style={{maxHeight:'240px',overflowY:'auto'}}>
+      {myGames.length === 0 ? (
+        <div style={{padding:'14px',textAlign:'center',fontSize:'12px',color:'#bbb'}}>Ajoute des jeux dans ton Profil</div>
+      ) : (
+        myGames.map(g => (
+          <div key={g.id} onClick={() => onSelect(g)}
+            style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 14px',borderTop:'1px solid #f0f0f0',cursor:'pointer',background:selectedId===g.id?'#f0f9f0':'#fff'}}>
+            {g.cover_url ? (
+              <img src={g.cover_url} alt={g.game_name}
+                onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }}
+                style={{width:'32px',height:'32px',borderRadius:'8px',objectFit:'cover',flexShrink:0}}/>
+            ) : null}
+            <div style={{width:'32px',height:'32px',borderRadius:'8px',background:'#1a1a2e',display:g.cover_url?'none':'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <span style={{fontSize:'8px',fontWeight:'700',color:'#fff'}}>{g.platform}</span>
+            </div>
+            <div style={{flex:1,fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.game_name}</div>
+            {selectedId===g.id && (
+              <div style={{width:'18px',height:'18px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <svg width="9" height="9" viewBox="0 0 9 9"><polyline points="1.5,4.5 3.5,6.5 7.5,2.5" stroke="#27500A" strokeWidth="1.5" fill="none"/></svg>
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  )
+
   const PoteChip = ({ pote, selected, onSelect }) => (
     <div onClick={onSelect}
       style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 12px',borderRadius:'20px',border:`1px solid ${selected ? '#111' : '#eee'}`,background:selected ? '#111' : '#fff',cursor:'pointer',flexShrink:0}}>
@@ -251,7 +280,7 @@ export default function Status({ user, profile }) {
         {pote.name?.split(' ')[0]}
       </span>
       {pote.type === 'contact' && (
-        <span style={{fontSize:'9px',color:selected?'#aaa':'#bbb'}}>sans app</span>
+        <span style={{fontSize:'9px',color:selected?'#aaa':'#bbb'}}> sans app</span>
       )}
     </div>
   )
@@ -313,29 +342,7 @@ export default function Status({ user, profile }) {
           {status !== 'off' && (
             <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
               <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Je joue à...</div>
-              {myGames.length === 0 ? (
-                <div style={{padding:'14px',textAlign:'center',fontSize:'12px',color:'#bbb'}}>Ajoute des jeux dans ton Profil</div>
-              ) : (
-                myGames.slice(0, 6).map(g => (
-                  <div key={g.id} onClick={() => setSelectedGame(g)}
-                    style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 14px',borderTop:'1px solid #f0f0f0',cursor:'pointer',background:selectedGame?.id===g.id?'#f0f9f0':'#fff'}}>
-                    {g.cover_url ? (
-                      <img src={g.cover_url} alt={g.game_name} onError={e => e.target.style.display='none'}
-                        style={{width:'32px',height:'32px',borderRadius:'8px',objectFit:'cover',flexShrink:0}}/>
-                    ) : (
-                      <div style={{width:'32px',height:'32px',borderRadius:'8px',background:'#1a1a2e',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                        <span style={{fontSize:'8px',fontWeight:'700',color:'#fff'}}>{g.platform}</span>
-                      </div>
-                    )}
-                    <div style={{flex:1,fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.game_name}</div>
-                    {selectedGame?.id===g.id && (
-                      <div style={{width:'18px',height:'18px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                        <svg width="9" height="9" viewBox="0 0 9 9"><polyline points="1.5,4.5 3.5,6.5 7.5,2.5" stroke="#27500A" strokeWidth="1.5" fill="none"/></svg>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
+              <GameList selectedId={selectedGame?.id} onSelect={(g) => setSelectedGame(g)} />
             </div>
           )}
 
@@ -367,19 +374,15 @@ export default function Status({ user, profile }) {
       {/* TAB DÉFI */}
       {activeTab === 'defi' && (
         <div style={{padding:'16px'}}>
-          <div style={{fontSize:'12px',color:'#888',marginBottom:'14px',lineHeight:'1.5'}}>
+          <div style={{fontSize:'12px',color:'#888',marginBottom:'14px'}}>
             Défie un pote — il reçoit un SMS avec le défi.
           </div>
 
-          {/* Potes sur l'app + sans app */}
+          {/* Potes */}
           <div style={{marginBottom:'14px'}}>
-            <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>
-              Défier qui ?
-            </div>
+            <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>Défier qui ?</div>
             {allPotes.length === 0 ? (
-              <div style={{fontSize:'12px',color:'#bbb',padding:'12px',background:'#fafaf9',borderRadius:'12px',textAlign:'center'}}>
-                Aucun pote pour l'instant
-              </div>
+              <div style={{fontSize:'12px',color:'#bbb',padding:'12px',background:'#fafaf9',borderRadius:'12px',textAlign:'center'}}>Aucun pote pour l'instant</div>
             ) : (
               <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
                 {allPotes.map(f => (
@@ -389,38 +392,31 @@ export default function Status({ user, profile }) {
                 ))}
               </div>
             )}
-            {/* Numéro manuel */}
-            <div style={{marginTop:'10px',display:'flex',gap:'8px'}}>
+            <div style={{marginTop:'10px'}}>
               <input type="tel" placeholder="Ou entre un numéro directement..."
                 value={manualPhone} onChange={e => setManualPhone(e.target.value)}
-                style={{flex:1,padding:'8px 12px',border:'1px solid #eee',borderRadius:'10px',fontSize:'12px',color:'#111',fontFamily:'inherit',outline:'none'}}/>
+                style={{width:'100%',padding:'8px 12px',border:'1px solid #eee',borderRadius:'10px',fontSize:'12px',color:'#111',fontFamily:'inherit',outline:'none',boxSizing:'border-box'}}/>
             </div>
           </div>
 
-          {/* Jeu */}
-          <div style={{marginBottom:'14px'}}>
-            <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>
-              Sur quel jeu ?
-            </div>
-            <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-              {[...(currentStatus ? [currentStatus.game] : []), ...myGames.slice(0,5).map(g => g.game_name)]
-                .filter((v, i, a) => a.indexOf(v) === i)
-                .map((gameName, i) => (
-                  <div key={i} onClick={() => fetchDefis(gameName)}
-                    style={{padding:'5px 10px',borderRadius:'20px',background:'#f5f5f5',fontSize:'11px',fontWeight:'600',color:'#111',cursor:'pointer',border:'1px solid #eee'}}>
-                    {gameName}
-                  </div>
-                ))}
-            </div>
+          {/* Jeux — même présentation que Statut */}
+          <div style={{marginBottom:'14px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
+            <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Sur quel jeu ?</div>
+            <GameList
+              selectedId={selectedDefiGame?.id}
+              onSelect={(g) => {
+                setSelectedDefiGame(g)
+                fetchDefis(g.game_name)
+              }}
+            />
           </div>
 
           {/* Défis */}
           <div>
-            <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>
-              Choisis ton défi
-            </div>
+            <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>Choisis ton défi</div>
             {currentDefis.map((defi, i) => (
-              <div key={i} onClick={() => (selectedFriend || manualPhone) ? lancerDefi(defi) : alert('Choisis d\'abord un pote !')}
+              <div key={i}
+                onClick={() => (selectedFriend || manualPhone) ? lancerDefi(defi) : alert('Choisis d\'abord un pote !')}
                 style={{padding:'12px',borderRadius:'12px',border:'1px solid #eee',marginBottom:'8px',cursor:'pointer',fontSize:'12px',color:'#111',fontWeight:'500',background:'#fafaf9',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px',opacity:(selectedFriend||manualPhone)?1:0.6}}
                 onMouseEnter={e => e.currentTarget.style.background='#f0f0f0'}
                 onMouseLeave={e => e.currentTarget.style.background='#fafaf9'}>
@@ -440,16 +436,10 @@ export default function Status({ user, profile }) {
       {/* TAB CHAT */}
       {activeTab === 'chat' && (
         <div style={{padding:'16px'}}>
-
-          {/* Inviter des potes */}
           <div style={{marginBottom:'14px'}}>
-            <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>
-              Inviter au chat
-            </div>
+            <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>Inviter au chat</div>
             {allPotes.length === 0 ? (
-              <div style={{fontSize:'12px',color:'#bbb',padding:'12px',background:'#fafaf9',borderRadius:'12px',textAlign:'center'}}>
-                Aucun pote pour l'instant
-              </div>
+              <div style={{fontSize:'12px',color:'#bbb',padding:'12px',background:'#fafaf9',borderRadius:'12px',textAlign:'center'}}>Aucun pote pour l'instant</div>
             ) : (
               <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
                 {allPotes.map(f => (
@@ -468,7 +458,6 @@ export default function Status({ user, profile }) {
                 ))}
               </div>
             )}
-            {/* Numéro manuel */}
             <div style={{marginTop:'10px',display:'flex',gap:'8px'}}>
               <input type="tel" placeholder="Ou entre un numéro directement..."
                 value={manualPhone} onChange={e => setManualPhone(e.target.value)}
@@ -482,7 +471,6 @@ export default function Status({ user, profile }) {
             </div>
           </div>
 
-          {/* Messages */}
           <div style={{border:'1px solid #eee',borderRadius:'14px',overflow:'hidden'}}>
             <div style={{padding:'10px 14px',background:'#fafaf9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
               <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Messages</span>
@@ -492,7 +480,7 @@ export default function Status({ user, profile }) {
             <div style={{maxHeight:'220px',overflowY:'auto',padding:'8px 12px',background:'#fff'}}>
               {messages.length === 0 ? (
                 <div style={{textAlign:'center',padding:'20px 0',fontSize:'11px',color:'#bbb'}}>
-                  Personne n'a encore écrit — lance la discussion !
+                  Lance la discussion !
                 </div>
               ) : (
                 messages.map((m) => {

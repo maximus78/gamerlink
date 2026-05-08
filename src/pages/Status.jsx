@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
-// GamePills EN DEHORS du composant pour éviter le re-render
 const GamePills = ({ myGames, selectedId, onSelect, search, onSearch }) => {
   const filtered = search
     ? myGames.filter(g => g.game_name.toLowerCase().includes(search.toLowerCase()))
@@ -68,6 +67,7 @@ export default function Status({ user, profile }) {
   const [friends, setFriends] = useState([])
   const [contacts, setContacts] = useState([])
   const [selectedFriend, setSelectedFriend] = useState(null)
+  const [invitedFriends, setInvitedFriends] = useState([])
   const [selectedDefiGame, setSelectedDefiGame] = useState(null)
   const [currentDefis, setCurrentDefis] = useState([])
   const [activeTab, setActiveTab] = useState('statut')
@@ -177,6 +177,7 @@ export default function Status({ user, profile }) {
     if (data && data.length > 0) {
       setCurrentStatus(data[0])
       setStatus(data[0].type)
+      setInvitedFriends(data[0].invited_friends || [])
     } else {
       setCurrentStatus(null)
     }
@@ -205,6 +206,14 @@ export default function Status({ user, profile }) {
       message: text.trim()
     })
     setNewMessage('')
+  }
+
+  const toggleInvitedFriend = (friend) => {
+    setInvitedFriends(prev => {
+      const exists = prev.find(f => f.id === friend.id)
+      if (exists) return prev.filter(f => f.id !== friend.id)
+      return [...prev, { id: friend.id, name: friend.name, avatar_url: friend.avatar_url }]
+    })
   }
 
   const lancerDefi = (defi) => {
@@ -244,7 +253,9 @@ export default function Status({ user, profile }) {
     await supabase.from('statuses').delete().eq('user_id', user.id)
     const gameName = selectedGame?.game_name || 'Jeu libre'
     await supabase.from('statuses').insert({
-      user_id: user.id, type: status, game: gameName, expires_at: getExpiry()
+      user_id: user.id, type: status, game: gameName,
+      expires_at: getExpiry(),
+      invited_friends: invitedFriends
     })
     await supabase.from('status_history').insert({
       user_id: user.id, game: gameName, type: status,
@@ -259,6 +270,7 @@ export default function Status({ user, profile }) {
     setCurrentStatus(null)
     setStatus('off')
     setSelectedGame(null)
+    setInvitedFriends([])
   }
 
   const handleExtend = async () => {
@@ -301,7 +313,6 @@ export default function Status({ user, profile }) {
 
   return (
     <div>
-      {/* Tabs */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderBottom:'1px solid #eee',background:'#fff'}}>
         {tabs.map(t => (
           <div key={t.key} onClick={() => setActiveTab(t.key)}
@@ -311,17 +322,32 @@ export default function Status({ user, profile }) {
         ))}
       </div>
 
-      {/* TAB STATUT */}
       {activeTab === 'statut' && (
         <div>
           {currentStatus && (
             <div style={{margin:'12px 16px 0',background:'#f0f9f0',border:'1px solid #d4edbb',borderRadius:'14px',padding:'12px 14px'}}>
               <div style={{fontSize:'11px',fontWeight:'700',color:'#639922',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'4px'}}>Statut actif</div>
               <div style={{fontSize:'15px',fontWeight:'700',color:'#111',marginBottom:'2px'}}>{currentStatus.game}</div>
-              <div style={{fontSize:'11px',color:'#888'}}>
+              <div style={{fontSize:'11px',color:'#888',marginBottom:'6px'}}>
                 {viewers > 0 ? `${viewers} pote${viewers > 1 ? 's' : ''} peuvent te voir` : 'Visible par tes potes'}
               </div>
-              <div style={{display:'flex',gap:'8px',marginTop:'10px'}}>
+              {invitedFriends.length > 0 && (
+                <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px'}}>
+                  {invitedFriends.map((f, i) => (
+                    <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'2px 8px',borderRadius:'20px',background:'#fff',border:'1px solid #d4edbb'}}>
+                      {f.avatar_url ? (
+                        <img src={f.avatar_url} alt={f.name} style={{width:'16px',height:'16px',borderRadius:'50%',objectFit:'cover'}}/>
+                      ) : (
+                        <div style={{width:'16px',height:'16px',borderRadius:'50%',background:getColor(f.name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'7px',fontWeight:'700',color:getTextColor(f.name)}}>
+                          {getInitials(f.name)}
+                        </div>
+                      )}
+                      <span style={{fontSize:'10px',fontWeight:'600',color:'#27500A'}}>{f.name?.split(' ')[0]}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{display:'flex',gap:'8px'}}>
                 <button onClick={handleExtend}
                   style={{flex:1,padding:'9px',borderRadius:'10px',background:'#fff',border:'1px solid #eee',fontSize:'12px',fontWeight:'600',color:'#111',cursor:'pointer',fontFamily:'inherit'}}>
                   +30 min
@@ -350,13 +376,22 @@ export default function Status({ user, profile }) {
           {status !== 'off' && (
             <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
               <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Je joue à...</div>
-              <GamePills
-                myGames={myGames}
-                selectedId={selectedGame?.id}
-                onSelect={setSelectedGame}
-                search={gameSearch}
-                onSearch={setGameSearch}
-              />
+              <GamePills myGames={myGames} selectedId={selectedGame?.id} onSelect={setSelectedGame} search={gameSearch} onSearch={setGameSearch}/>
+            </div>
+          )}
+
+          {/* Qui joue avec moi */}
+          {status !== 'off' && friends.length > 0 && (
+            <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
+              <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Qui joue avec moi ?</div>
+              <div style={{padding:'10px 14px',display:'flex',gap:'8px',flexWrap:'wrap'}}>
+                {friends.map(f => (
+                  <PoteChip key={f.id} pote={{...f, type:'app'}}
+                    selected={invitedFriends.some(i => i.id === f.id)}
+                    onSelect={() => toggleInvitedFriend(f)}
+                    getColor={getColor} getTextColor={getTextColor} getInitials={getInitials}/>
+                ))}
+              </div>
             </div>
           )}
 
@@ -385,12 +420,9 @@ export default function Status({ user, profile }) {
         </div>
       )}
 
-      {/* TAB DÉFI */}
       {activeTab === 'defi' && (
         <div style={{padding:'16px'}}>
-          <div style={{fontSize:'12px',color:'#888',marginBottom:'14px'}}>
-            Défie un pote — il reçoit un SMS avec le défi.
-          </div>
+          <div style={{fontSize:'12px',color:'#888',marginBottom:'14px'}}>Défie un pote — il reçoit un SMS avec le défi.</div>
 
           <div style={{marginBottom:'14px'}}>
             <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>Défier qui ?</div>
@@ -415,13 +447,9 @@ export default function Status({ user, profile }) {
 
           <div style={{marginBottom:'14px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
             <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Sur quel jeu ?</div>
-            <GamePills
-              myGames={myGames}
-              selectedId={selectedDefiGame?.id}
+            <GamePills myGames={myGames} selectedId={selectedDefiGame?.id}
               onSelect={(g) => { setSelectedDefiGame(g); fetchDefis(g.game_name) }}
-              search={defiGameSearch}
-              onSearch={setDefiGameSearch}
-            />
+              search={defiGameSearch} onSearch={setDefiGameSearch}/>
           </div>
 
           <div>
@@ -437,15 +465,12 @@ export default function Status({ user, profile }) {
               </div>
             ))}
             {!selectedFriend && !manualPhone && (
-              <div style={{fontSize:'11px',color:'#bbb',textAlign:'center',marginTop:'4px'}}>
-                ↑ Choisis un pote ou entre un numéro
-              </div>
+              <div style={{fontSize:'11px',color:'#bbb',textAlign:'center',marginTop:'4px'}}>↑ Choisis un pote ou entre un numéro</div>
             )}
           </div>
         </div>
       )}
 
-      {/* TAB CHAT */}
       {activeTab === 'chat' && (
         <div style={{padding:'16px'}}>
           <div style={{marginBottom:'14px'}}>
@@ -488,12 +513,9 @@ export default function Status({ user, profile }) {
               <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Messages</span>
               {messages.length > 0 && <span style={{fontSize:'10px',color:'#bbb'}}>{messages.length} message{messages.length > 1 ? 's' : ''}</span>}
             </div>
-
             <div style={{maxHeight:'220px',overflowY:'auto',padding:'8px 12px',background:'#fff'}}>
               {messages.length === 0 ? (
-                <div style={{textAlign:'center',padding:'20px 0',fontSize:'11px',color:'#bbb'}}>
-                  Lance la discussion !
-                </div>
+                <div style={{textAlign:'center',padding:'20px 0',fontSize:'11px',color:'#bbb'}}>Lance la discussion !</div>
               ) : (
                 messages.map((m) => {
                   const isMe = m.user_id === user.id
@@ -517,7 +539,6 @@ export default function Status({ user, profile }) {
               )}
               <div ref={messagesEndRef}/>
             </div>
-
             <div style={{padding:'8px 12px',borderTop:'1px solid #f5f5f5',background:'#fafaf9',display:'flex',gap:'6px',flexWrap:'wrap'}}>
               {quickReplies.map(r => (
                 <button key={r} onClick={() => sendMessage(r)}
@@ -526,7 +547,6 @@ export default function Status({ user, profile }) {
                 </button>
               ))}
             </div>
-
             <div style={{padding:'8px 12px',borderTop:'1px solid #f5f5f5',display:'flex',gap:'8px',background:'#fff'}}>
               <input type="text" placeholder="Écris un message..."
                 value={newMessage} onChange={e => setNewMessage(e.target.value)}

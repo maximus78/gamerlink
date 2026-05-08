@@ -167,15 +167,10 @@ export default function Feed({ user, profile }) {
   }
 
   const handleScanContacts = async () => {
-    if (!contactsSupported) {
-      alert('Le scan de contacts n\'est disponible que sur mobile')
-      return
-    }
+    if (!contactsSupported) { alert('Le scan de contacts n\'est disponible que sur mobile'); return }
     setScanning(true)
     try {
-      const props = ['name', 'tel']
-      const opts = { multiple: true }
-      const rawContacts = await navigator.contacts.select(props, opts)
+      const rawContacts = await navigator.contacts.select(['name', 'tel'], { multiple: true })
       if (!rawContacts || rawContacts.length === 0) { setScanning(false); return }
       const phones = []
       rawContacts.forEach(c => {
@@ -185,19 +180,14 @@ export default function Feed({ user, profile }) {
         })
       })
       if (phones.length === 0) { setScanning(false); return }
-      const { data: matches } = await supabase
-        .from('profiles').select('id, name, phone, avatar_url').in('phone', phones)
+      const { data: matches } = await supabase.from('profiles').select('id, name, phone, avatar_url').in('phone', phones)
       let newFriends = 0
       if (matches && matches.length > 0) {
         for (const match of matches) {
           if (match.id === user.id) continue
-          const { error } = await supabase.from('friends').upsert({
-            user_id: user.id, friend_id: match.id
-          }, { onConflict: 'user_id,friend_id' })
+          const { error } = await supabase.from('friends').upsert({ user_id: user.id, friend_id: match.id }, { onConflict: 'user_id,friend_id' })
           if (!error) newFriends++
-          await supabase.from('friends').upsert({
-            user_id: match.id, friend_id: user.id
-          }, { onConflict: 'user_id,friend_id' })
+          await supabase.from('friends').upsert({ user_id: match.id, friend_id: user.id }, { onConflict: 'user_id,friend_id' })
         }
       }
       setScanResult({ total: phones.length, found: newFriends })
@@ -210,33 +200,25 @@ export default function Feed({ user, profile }) {
   const generateInvite = async () => {
     if (!contactName.trim()) return
     setInviting(true)
-    const { data } = await supabase
-      .from('invitations')
-      .insert({ created_by: user.id, contact_name: contactName })
-      .select().single()
+    const { data } = await supabase.from('invitations').insert({ created_by: user.id, contact_name: contactName }).select().single()
     if (data) setInviteLink(`${window.location.origin}?token=${data.token}`)
     setInviting(false)
   }
 
   const handleRejoindre = (s) => {
     const text = `Yo ! Je te rejoins sur ${s.game} 🎮 — WhoPlays`
-    if (isMobile) {
-      window.open(`sms:${s.profiles?.phone || ''}?body=${encodeURIComponent(text)}`)
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`)
-    }
+    if (isMobile) window.open(`sms:${s.profiles?.phone || ''}?body=${encodeURIComponent(text)}`)
+    else window.open(`https://wa.me/?text=${encodeURIComponent(text)}`)
   }
 
   const handleInviterContact = (c) => {
-    const text = `${myName} t'invite sur WhoPlays — viens voir à quoi on joue ce soir : ${window.location.origin}`
-    window.open(`sms:?body=${encodeURIComponent(text)}`)
+    window.open(`sms:?body=${encodeURIComponent(`${myName} t'invite sur WhoPlays — viens voir à quoi on joue ce soir : ${window.location.origin}`)}`)
   }
 
   const shareText = `${myName} veut savoir à quoi tu joues sur WhoPlays. Renseigne ton pseudo en 30 sec 👇\n${inviteLink}`
   const shareNative = async () => {
-    if (navigator.share) {
-      try { await navigator.share({ title: 'WhoPlays', text: shareText, url: inviteLink }) } catch(e) {}
-    } else { navigator.clipboard.writeText(inviteLink); alert('Lien copié !') }
+    if (navigator.share) { try { await navigator.share({ title: 'WhoPlays', text: shareText, url: inviteLink }) } catch(e) {} }
+    else { navigator.clipboard.writeText(inviteLink); alert('Lien copié !') }
   }
   const shareWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`)
   const shareSMS = () => window.open(`sms:?body=${encodeURIComponent(shareText)}`)
@@ -246,8 +228,8 @@ export default function Feed({ user, profile }) {
   const getInitials = (name) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2) : '?'
   const getColor = (name) => ['#C0DD97','#CECBF6','#FAC775','#B5D4F4','#F5C4B3','#9FE1CB'][name ? name.charCodeAt(0)%6 : 0]
   const getTextColor = (name) => ['#27500A','#3C3489','#633806','#0C447C','#712B13','#085041'][name ? name.charCodeAt(0)%6 : 0]
-  const getPill = (type) => type==='game' ? {label:'En game',bg:'#EAF3DE',color:'#27500A'} : type==='hot' ? {label:'Chaud',bg:'#FCEBEB',color:'#A32D2D'} : {label:'Dispo',bg:'#E6F1FB',color:'#185FA5'}
-  const getDot = (type) => type==='game' ? '#639922' : type==='hot' ? '#E24B4A' : '#378ADD'
+  const getPill = (type) => type==='game' ? {label:'En game',bg:'#EAF3DE',color:'#27500A'} : type==='hot' ? {label:'Chaud 🔥',bg:'#FCEBEB',color:'#A32D2D'} : {label:'Pas dispo',bg:'#f5f5f5',color:'#999'}
+  const getDot = (type) => type==='game' ? '#639922' : type==='hot' ? '#E24B4A' : '#ccc'
 
   const getPlatformTags = (c) => {
     const tags = []
@@ -260,8 +242,7 @@ export default function Feed({ user, profile }) {
   }
 
   const Avatar = ({ name, avatarUrl, size = 38 }) => avatarUrl ? (
-    <img src={avatarUrl} alt={name}
-      style={{width:`${size}px`,height:`${size}px`,borderRadius:'50%',objectFit:'cover',flexShrink:0}}/>
+    <img src={avatarUrl} alt={name} style={{width:`${size}px`,height:`${size}px`,borderRadius:'50%',objectFit:'cover',flexShrink:0}}/>
   ) : (
     <div style={{width:`${size}px`,height:`${size}px`,borderRadius:'50%',background:getColor(name),color:getTextColor(name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',flexShrink:0}}>
       {getInitials(name)}
@@ -271,8 +252,7 @@ export default function Feed({ user, profile }) {
   const filteredStatuses = statuses.filter(s => {
     if (!search) return true
     const name = s.profiles?.name || ''
-    return name.toLowerCase().includes(search.toLowerCase()) ||
-      s.game?.toLowerCase().includes(search.toLowerCase())
+    return name.toLowerCase().includes(search.toLowerCase()) || s.game?.toLowerCase().includes(search.toLowerCase())
   })
 
   const filteredContacts = contacts.filter(c => {
@@ -286,6 +266,7 @@ export default function Feed({ user, profile }) {
 
   return (
     <div>
+      {/* Recherche */}
       <div style={{padding:'12px 16px 8px'}}>
         <div style={{position:'relative'}}>
           <svg style={{position:'absolute',left:'10px',top:'50%',transform:'translateY(-50%)',opacity:0.4}} width="14" height="14" viewBox="0 0 14 14">
@@ -333,7 +314,7 @@ export default function Feed({ user, profile }) {
           {filteredStatuses.length > 0 && (
             <>
               <div style={{padding:'4px 16px 6px',fontSize:'11px',color:'#aaa',fontWeight:'500'}}>
-                {filteredStatuses.length} joueur{filteredStatuses.length>1?'s':''} actif{filteredStatuses.length>1?'s':''} en ce moment
+                {filteredStatuses.filter(s => s.type !== 'off').length} joueur{filteredStatuses.filter(s => s.type !== 'off').length>1?'s':''} actif{filteredStatuses.filter(s => s.type !== 'off').length>1?'s':''} · {filteredStatuses.filter(s => s.type === 'off').length > 0 ? `${filteredStatuses.filter(s => s.type === 'off').length} pas dispo` : ''}
               </div>
               {filteredStatuses.map(s => {
                 const name = s.profiles?.name || 'Joueur'
@@ -343,43 +324,61 @@ export default function Feed({ user, profile }) {
                 const genres = getGenres(games)
                 const habits = userHabits[s.user_id]
                 const top5 = games.slice(0, 5)
-                return (
-                  <div key={s.id} style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5',cursor:isMe?'default':'pointer'}}
-                    onClick={() => !isMe && setSelectedPote(s.user_id)}>
+                const isOff = s.type === 'off'
+                const invitedFriends = s.invited_friends || []
 
-                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
+                return (
+                  <div key={s.id}
+                    style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5',cursor:isMe?'default':'pointer',opacity:isOff?0.45:1}}
+                    onClick={() => !isMe && !isOff && setSelectedPote(s.user_id)}>
+
+                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom: isOff ? '0' : '8px'}}>
                       <div style={{position:'relative',flexShrink:0}}>
                         <Avatar name={name} avatarUrl={s.profiles?.avatar_url} size={40} />
                         <span style={{position:'absolute',bottom:'0',right:'0',width:'9px',height:'9px',borderRadius:'50%',background:getDot(s.type),border:'2px solid #fff'}}></span>
                       </div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{name}{isMe?' (toi)':''}</div>
-                        <div style={{fontSize:'11px',color:'#888',marginTop:'1px'}}>{s.game}</div>
+                        <div style={{fontSize:'11px',color:'#888',marginTop:'1px'}}>
+                          {isOff ? 'Pas dispo ce soir' : s.game}
+                        </div>
                       </div>
                       <span style={{fontSize:'10px',fontWeight:'600',padding:'3px 8px',borderRadius:'20px',background:pill.bg,color:pill.color,flexShrink:0}}>
                         {pill.label}
                       </span>
                     </div>
 
-                    {(genres.length > 0 || habits) && (
+                    {!isOff && (genres.length > 0 || habits) && (
                       <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px'}}>
                         {genres.map((g,i) => (
-                          <span key={i} style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>
-                            {g}
-                          </span>
+                          <span key={i} style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>{g}</span>
                         ))}
                         {habits && (
                           <span style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>
-                            {habits.timeLabel}{habits.isWeekend ? ' · Week-end' : ''}
+                            {habits.timeLabel}{habits.isWeekend?' · Week-end':''}
                           </span>
                         )}
                       </div>
                     )}
 
-                    {/* Bulles jaquettes */}
-                    <GameBubbles games={top5} />
+                    {!isOff && <GameBubbles games={top5} />}
 
-                    {!isMe && (
+                    {/* Potes invités */}
+                    {!isOff && invitedFriends.length > 0 && (
+                      <div style={{display:'flex',alignItems:'center',gap:'4px',marginBottom:'8px',flexWrap:'wrap'}}>
+                        <span style={{fontSize:'9px',color:'#aaa',fontWeight:'600'}}>avec</span>
+                        {invitedFriends.map((f, i) => (
+                          <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',borderRadius:'20px',background:'#f0f0f0'}}>
+                            {f.avatar_url ? (
+                              <img src={f.avatar_url} alt={f.name} style={{width:'14px',height:'14px',borderRadius:'50%',objectFit:'cover'}}/>
+                            ) : null}
+                            <span style={{fontSize:'10px',fontWeight:'600',color:'#555'}}>{f.name?.split(' ')[0]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {!isMe && !isOff && (
                       <button onClick={(e) => { e.stopPropagation(); handleRejoindre(s) }}
                         style={{width:'100%',padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
                         🎮 Je rejoins
@@ -426,6 +425,7 @@ export default function Feed({ user, profile }) {
         </>
       )}
 
+      {/* Inviter un pote */}
       <div style={{margin:'16px 16px 0',border:'1px dashed #ddd',borderRadius:'14px',overflow:'hidden'}}>
         <div style={{background:'#fafaf9',padding:'10px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <span style={{fontSize:'11px',color:'#888',fontWeight:'600'}}>Inviter un pote</span>

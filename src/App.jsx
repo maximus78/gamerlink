@@ -4,7 +4,7 @@ import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import Feed from './pages/Feed'
 import Status from './pages/Status'
-import Profil from './pages/Profil.jsx'
+import Profil from './pages/Profil'
 import Invitation from './pages/Invitation'
 import './App.css'
 
@@ -27,29 +27,26 @@ export default function App() {
     if (isInvitation) { setLoading(false); return }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      if (session) fetchProfile(session.user.id)
+      if (session) fetchProfile(session.user.id, session.user)
       else setLoading(false)
     })
     supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      if (session) fetchProfile(session.user.id)
+      if (session) fetchProfile(session.user.id, session.user)
       else { setProfile(null); setLoading(false) }
     })
   }, [])
 
-  const fetchProfile = async (userId) => {
-  const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-  
-  // Met à jour l'avatar Google à chaque connexion
-  const avatarUrl = supabase.auth.getSession && (await supabase.auth.getSession())?.data?.session?.user?.user_metadata?.avatar_url
-  if (avatarUrl && data && data.avatar_url !== avatarUrl) {
-    await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', userId)
-    data.avatar_url = avatarUrl
+  const fetchProfile = async (userId, authUser) => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    const avatarUrl = authUser?.user_metadata?.avatar_url
+    if (avatarUrl && data && data.avatar_url !== avatarUrl) {
+      await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', userId)
+      if (data) data.avatar_url = avatarUrl
+    }
+    setProfile(data)
+    setLoading(false)
   }
-  
-  setProfile(data)
-  setLoading(false)
-}
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -66,7 +63,7 @@ export default function App() {
   if (!session) return <Login />
 
   if (!profile) return (
-    <Onboarding user={session.user} onComplete={() => fetchProfile(session.user.id)} />
+    <Onboarding user={session.user} onComplete={() => fetchProfile(session.user.id, session.user)} />
   )
 
   const navItems = [
@@ -90,13 +87,11 @@ export default function App() {
   const renderPage = () => {
     if (page === 'feed') return <Feed user={session.user} profile={profile} onNavigate={setPage} />
     if (page === 'status') return <Status user={session.user} profile={profile} />
-    if (page === 'profil') return <Profil user={session.user} profile={profile} onProfileUpdate={() => fetchProfile(session.user.id)} onSignOut={handleSignOut} />
+    if (page === 'profil') return <Profil user={session.user} profile={profile} onProfileUpdate={() => fetchProfile(session.user.id, session.user)} onSignOut={handleSignOut} />
   }
 
-  // DESKTOP
   if (isDesktop) return (
     <div style={{display:'flex',minHeight:'100vh',background:'#f0efe8'}}>
-      {/* Sidebar */}
       <div style={{width:'240px',background:'#fff',borderRight:'1px solid #eee',padding:'28px 16px',display:'flex',flexDirection:'column',gap:'4px',position:'sticky',top:0,height:'100vh',flexShrink:0,overflowY:'auto'}}>
         <div style={{fontSize:'20px',fontWeight:'700',color:'#111',letterSpacing:'-.5px',marginBottom:'24px',padding:'0 10px'}}>GamerLink</div>
 
@@ -118,9 +113,14 @@ export default function App() {
 
         <div style={{marginTop:'auto',padding:'12px 14px',borderRadius:'12px',background:'#fafaf9',display:'flex',alignItems:'center',gap:'10px',cursor:'pointer'}}
           onClick={() => setPage('profil')}>
-          <div style={{width:'36px',height:'36px',borderRadius:'50%',background:'#EAF3DE',color:'#27500A',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',flexShrink:0}}>
-            {profile?.name?.charAt(0) || 'T'}
-          </div>
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt={profile.name}
+              style={{width:'36px',height:'36px',borderRadius:'50%',objectFit:'cover',flexShrink:0}}/>
+          ) : (
+            <div style={{width:'36px',height:'36px',borderRadius:'50%',background:'#EAF3DE',color:'#27500A',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',flexShrink:0}}>
+              {profile?.name?.charAt(0) || 'T'}
+            </div>
+          )}
           <div>
             <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{profile?.name?.split(' ')[0]}</div>
             <div style={{fontSize:'11px',color:'#aaa'}}>Mon profil →</div>
@@ -128,7 +128,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Colonne centrale */}
       <div style={{flex:1,maxWidth:'680px',background:'#fff',borderRight:'1px solid #eee',height:'100vh',display:'flex',flexDirection:'column'}}>
         <div style={{padding:'20px 24px 16px',borderBottom:'1px solid #f0f0f0',flexShrink:0}}>
           <div style={{fontSize:'18px',fontWeight:'700',color:'#111'}}>
@@ -140,7 +139,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Colonne droite */}
       <div style={{flex:1,padding:'24px 20px'}}>
         <div style={{fontSize:'13px',fontWeight:'700',color:'#111',marginBottom:'12px'}}>Jeux en commun</div>
         <div style={{fontSize:'12px',color:'#aaa',lineHeight:'1.6'}}>
@@ -150,11 +148,8 @@ export default function App() {
     </div>
   )
 
-  // MOBILE
   return (
     <div style={{width:'100%',background:'#fff',display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden'}}>
-
-      {/* Header mobile */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 18px 8px',flexShrink:0,borderBottom:'1px solid #f5f5f5'}}>
         <span style={{fontSize:'20px',fontWeight:'700',color:'#111',letterSpacing:'-.5px'}}>GamerLink</span>
         <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
@@ -169,12 +164,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* Contenu */}
       <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
         {renderPage()}
       </div>
 
-      {/* Tab bar mobile */}
       <div style={{display:'flex',borderTop:'1px solid #eee',padding:'8px 0 34px',background:'#fff',flexShrink:0}}>
         {navItems.map(n => (
           <div key={n.key} onClick={() => setPage(n.key)}

@@ -237,29 +237,23 @@ export default function Status({ user, profile }) {
     ...contacts.map(c => ({ id: c.id, name: c.contact_name, phone: c.contact_phone, type: 'contact' }))
   ]
 
-  // Composant liste de jeux réutilisable
-  const GameList = ({ selectedId, onSelect }) => (
-    <div style={{maxHeight:'240px',overflowY:'auto'}}>
+  // Pills de jeux — même présentation partout
+  const GamePills = ({ selectedId, onSelect }) => (
+    <div style={{padding:'10px 14px',display:'flex',gap:'6px',flexWrap:'wrap'}}>
       {myGames.length === 0 ? (
-        <div style={{padding:'14px',textAlign:'center',fontSize:'12px',color:'#bbb'}}>Ajoute des jeux dans ton Profil</div>
+        <div style={{fontSize:'12px',color:'#bbb'}}>Ajoute des jeux dans ton Profil</div>
       ) : (
         myGames.map(g => (
           <div key={g.id} onClick={() => onSelect(g)}
-            style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 14px',borderTop:'1px solid #f0f0f0',cursor:'pointer',background:selectedId===g.id?'#f0f9f0':'#fff'}}>
+            style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 12px',borderRadius:'20px',border:`1px solid ${selectedId===g.id?'#111':'#eee'}`,background:selectedId===g.id?'#111':'#fff',cursor:'pointer',flexShrink:0}}>
             {g.cover_url ? (
               <img src={g.cover_url} alt={g.game_name}
-                onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }}
-                style={{width:'32px',height:'32px',borderRadius:'8px',objectFit:'cover',flexShrink:0}}/>
+                onError={e => e.target.style.display='none'}
+                style={{width:'18px',height:'18px',borderRadius:'4px',objectFit:'cover',flexShrink:0}}/>
             ) : null}
-            <div style={{width:'32px',height:'32px',borderRadius:'8px',background:'#1a1a2e',display:g.cover_url?'none':'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <span style={{fontSize:'8px',fontWeight:'700',color:'#fff'}}>{g.platform}</span>
-            </div>
-            <div style={{flex:1,fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.game_name}</div>
-            {selectedId===g.id && (
-              <div style={{width:'18px',height:'18px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                <svg width="9" height="9" viewBox="0 0 9 9"><polyline points="1.5,4.5 3.5,6.5 7.5,2.5" stroke="#27500A" strokeWidth="1.5" fill="none"/></svg>
-              </div>
-            )}
+            <span style={{fontSize:'12px',fontWeight:'600',color:selectedId===g.id?'#fff':'#111',whiteSpace:'nowrap'}}>
+              {g.game_name}
+            </span>
           </div>
         ))
       )}
@@ -268,7 +262,7 @@ export default function Status({ user, profile }) {
 
   const PoteChip = ({ pote, selected, onSelect }) => (
     <div onClick={onSelect}
-      style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 12px',borderRadius:'20px',border:`1px solid ${selected ? '#111' : '#eee'}`,background:selected ? '#111' : '#fff',cursor:'pointer',flexShrink:0}}>
+      style={{display:'flex',alignItems:'center',gap:'6px',padding:'6px 12px',borderRadius:'20px',border:`1px solid ${selected?'#111':'#eee'}`,background:selected?'#111':'#fff',cursor:'pointer',flexShrink:0}}>
       {pote.avatar_url ? (
         <img src={pote.avatar_url} alt={pote.name} style={{width:'22px',height:'22px',borderRadius:'50%',objectFit:'cover'}}/>
       ) : (
@@ -276,7 +270,7 @@ export default function Status({ user, profile }) {
           {getInitials(pote.name)}
         </div>
       )}
-      <span style={{fontSize:'12px',fontWeight:'600',color:selected ? '#fff' : '#111'}}>
+      <span style={{fontSize:'12px',fontWeight:'600',color:selected?'#fff':'#111'}}>
         {pote.name?.split(' ')[0]}
       </span>
       {pote.type === 'contact' && (
@@ -339,13 +333,15 @@ export default function Status({ user, profile }) {
             </div>
           </div>
 
+          {/* Jeux en pills */}
           {status !== 'off' && (
             <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
               <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Je joue à...</div>
-              <GameList selectedId={selectedGame?.id} onSelect={(g) => setSelectedGame(g)} />
+              <GamePills selectedId={selectedGame?.id} onSelect={setSelectedGame} />
             </div>
           )}
 
+          {/* Quand */}
           {status !== 'off' && (
             <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
               <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Quand ?</div>
@@ -378,7 +374,6 @@ export default function Status({ user, profile }) {
             Défie un pote — il reçoit un SMS avec le défi.
           </div>
 
-          {/* Potes */}
           <div style={{marginBottom:'14px'}}>
             <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>Défier qui ?</div>
             {allPotes.length === 0 ? (
@@ -399,19 +394,15 @@ export default function Status({ user, profile }) {
             </div>
           </div>
 
-          {/* Jeux — même présentation que Statut */}
+          {/* Jeux en pills */}
           <div style={{marginBottom:'14px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
             <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Sur quel jeu ?</div>
-            <GameList
+            <GamePills
               selectedId={selectedDefiGame?.id}
-              onSelect={(g) => {
-                setSelectedDefiGame(g)
-                fetchDefis(g.game_name)
-              }}
+              onSelect={(g) => { setSelectedDefiGame(g); fetchDefis(g.game_name) }}
             />
           </div>
 
-          {/* Défis */}
           <div>
             <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>Choisis ton défi</div>
             {currentDefis.map((defi, i) => (

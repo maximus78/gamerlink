@@ -66,15 +66,10 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
   const selectGame = async (game) => {
     setNewGame(game.name)
     setGameSuggestions([])
-    const coverUrl = game.cover?.url
-      ? game.cover.url.replace('t_thumb', 't_cover_small')
-      : null
+    const coverUrl = game.cover?.url ? game.cover.url.replace('t_thumb', 't_cover_small') : null
     await supabase.from('user_games').upsert({
-      user_id: user.id,
-      game_name: game.name,
-      platform: newPlatform,
-      last_played: new Date().toISOString(),
-      cover_url: coverUrl
+      user_id: user.id, game_name: game.name, platform: newPlatform,
+      last_played: new Date().toISOString(), cover_url: coverUrl
     }, { onConflict: 'user_id,game_name', ignoreDuplicates: false })
     setNewGame('')
     setShowAddGame(false)
@@ -88,35 +83,29 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     setSteamResult(null)
     try {
       await supabase.from('profiles').update({ steam_id: steamId }).eq('id', user.id)
-
       const resGames = await fetch(`/api/steam?steamid=${steamId}`)
       const dataGames = await resGames.json()
       if (dataGames.games && dataGames.games.length > 0) {
         for (const g of dataGames.games) {
           await supabase.from('user_games').upsert({
             user_id: user.id, game_name: g.name, platform: 'Steam',
-            hours_played: Math.floor(g.hours || 0),
-            last_played: new Date().toISOString(),
+            hours_played: Math.floor(g.hours || 0), last_played: new Date().toISOString(),
             cover_url: g.cover_url
           }, { onConflict: 'user_id,game_name', ignoreDuplicates: false })
         }
       }
-
       const resRecent = await fetch(`/api/steam?steamid=${steamId}&type=recent`)
       const dataRecent = await resRecent.json()
       if (dataRecent.games && dataRecent.games.length > 0) {
         for (const g of dataRecent.games) {
           await supabase.from('user_games').upsert({
             user_id: user.id, game_name: g.name, platform: 'Steam',
-            hours_played: g.hours_total,
-            last_played: g.last_played,
+            hours_played: g.hours_total, last_played: g.last_played,
             cover_url: g.cover_url
           }, { onConflict: 'user_id,game_name', ignoreDuplicates: false })
         }
       }
-
       await fetchMyGames()
-
       const resFriends = await fetch(`/api/steam-friends?steamid=${steamId}`)
       const dataFriends = await resFriends.json()
       let newFriends = 0
@@ -139,9 +128,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     setSteamImporting(false)
   }
 
-  const connectDiscord = () => {
-    window.location.href = '/api/discord-auth'
-  }
+  const connectDiscord = () => { window.location.href = '/api/discord-auth' }
 
   const saveTag = async (key, value) => {
     await supabase.from('profiles').update({ [key]: value }).eq('id', user.id)
@@ -156,9 +143,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
       user_id: user.id, game_name: newGame.trim(), platform: newPlatform,
       last_played: new Date().toISOString()
     }, { onConflict: 'user_id,game_name', ignoreDuplicates: false })
-    setNewGame('')
-    setShowAddGame(false)
-    setGameSuggestions([])
+    setNewGame(''); setShowAddGame(false); setGameSuggestions([])
     fetchMyGames()
   }
 
@@ -200,7 +185,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
         <div style={{padding:'10px 14px',background:'#fafaf9'}}>
           <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Mes comptes</span>
         </div>
-
         {platforms_list.map((p) => (
           <div key={p.key}>
             <div style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 14px',borderTop:'1px solid #f0f0f0'}}>
@@ -225,7 +209,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
                 {p.key === 'steam' && steamImporting ? '...' : p.connected ? 'Modifier' : '+ Ajouter'}
               </button>
             </div>
-
             {p.tagKey && editingTag === p.tagKey && (
               <div style={{padding:'0 14px 12px',display:'flex',gap:'6px'}}>
                 <input type="text" placeholder={p.placeholder} value={tagValue}
@@ -239,7 +222,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
                   style={{padding:'8px 10px',borderRadius:'10px',background:'#f5f5f5',color:'#888',border:'none',fontSize:'12px',cursor:'pointer',fontFamily:'inherit'}}>✕</button>
               </div>
             )}
-
             {p.key === 'steam' && steamImporting && (
               <div style={{margin:'0 14px 12px',padding:'10px 12px',background:'#f5f5f5',borderRadius:'10px',fontSize:'11px',color:'#888'}}>
                 🔍 Import jeux récents + scan amis Steam...
@@ -333,15 +315,15 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
         {myGames.map(g => (
           <div key={g.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'9px 14px',borderTop:'1px solid #f0f0f0'}}>
             {g.cover_url ? (
-  <img src={g.cover_url} alt={g.game_name}
-    onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }}
-    style={{width:'32px',height:'32px',borderRadius:'8px',objectFit:'cover',flexShrink:0}}/>
-) : null}
-<div style={{width:'32px',height:'32px',borderRadius:'8px',background:platformColors[g.platform]?.bg||'#eee',display:g.cover_url?'none':'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-  <span style={{color:platformColors[g.platform]?.color||'#888',display:'flex',alignItems:'center'}}>
-    <PlatformLogo platform={g.platform} size={16}/>
-  </span>
-</div>
+              <img src={g.cover_url} alt={g.game_name}
+                onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }}
+                style={{width:'32px',height:'32px',borderRadius:'8px',objectFit:'cover',flexShrink:0}}/>
+            ) : null}
+            <div style={{width:'32px',height:'32px',borderRadius:'8px',background:platformColors[g.platform]?.bg||'#eee',display:g.cover_url?'none':'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <span style={{color:platformColors[g.platform]?.color||'#888',display:'flex',alignItems:'center'}}>
+                <PlatformLogo platform={g.platform} size={16}/>
+              </span>
+            </div>
             <div style={{flex:1}}>
               <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.game_name}</div>
               <div style={{fontSize:'10px',color:'#aaa',marginTop:'1px'}}>

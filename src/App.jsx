@@ -7,7 +7,6 @@ import Status from './pages/Status'
 import Profil from './pages/Profil'
 import Invitation from './pages/Invitation'
 import Admin from './pages/Admin'
-import Demo from './pages/Demo'
 import './App.css'
 
 const ADMIN_USER_ID = 'fb230653-43fa-4495-a6ce-d5b2e04b1b35'
@@ -20,8 +19,6 @@ export default function App() {
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768)
 
   const isInvitation = new URLSearchParams(window.location.search).get('token')
-  const isDemo = new URLSearchParams(window.location.search).get('demo') === 'true' 
-    || window.location.pathname === '/demo'
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768)
@@ -30,7 +27,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (isInvitation || isDemo) { setLoading(false); return }
+    if (isInvitation) { setLoading(false); return }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       if (session) fetchProfile(session.user.id, session.user)
@@ -123,8 +120,6 @@ export default function App() {
   const handleFeedback = () => {
     window.open('https://tally.so/r/vGEPP8')
   }
-
-  if (isDemo) return <Demo />
 
   if (isInvitation) return <Invitation />
 

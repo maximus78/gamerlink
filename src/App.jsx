@@ -84,7 +84,7 @@ export default function App() {
   }
 
   const handleFeedback = () => {
-    window.open('sms:+33698072498?body=Feedback WhoPlays : ')
+    window.open('https://tally.so/r/vGEPP8')
   }
 
   if (isInvitation) return <Invitation />

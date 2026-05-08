@@ -10,6 +10,8 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
   const [steamResult, setSteamResult] = useState(null)
   const [gameSuggestions, setGameSuggestions] = useState([])
   const [searchingGames, setSearchingGames] = useState(false)
+  const [editingTag, setEditingTag] = useState(null)
+  const [tagValue, setTagValue] = useState('')
   const searchTimeout = useRef(null)
 
   const platforms = ['Steam', 'Xbox', 'PS', 'Epic', 'Discord']
@@ -65,9 +67,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     setNewGame(game.name)
     setGameSuggestions([])
     await supabase.from('user_games').upsert({
-      user_id: user.id,
-      game_name: game.name,
-      platform: newPlatform,
+      user_id: user.id, game_name: game.name, platform: newPlatform,
       last_played: new Date().toISOString()
     }, { onConflict: 'user_id,game_name' })
     setNewGame('')
@@ -82,8 +82,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     setSteamResult(null)
     try {
       await supabase.from('profiles').update({ steam_id: steamId }).eq('id', user.id)
-
-      // 1. Jeux possédés
       const resGames = await fetch(`/api/steam?steamid=${steamId}`)
       const dataGames = await resGames.json()
       if (dataGames.games && dataGames.games.length > 0) {
@@ -94,8 +92,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
           }, { onConflict: 'user_id,game_name' })
         }
       }
-
-      // 2. Jeux récents — last_played précis
       const resRecent = await fetch(`/api/steam?steamid=${steamId}&type=recent`)
       const dataRecent = await resRecent.json()
       if (dataRecent.games && dataRecent.games.length > 0) {
@@ -106,10 +102,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
           }, { onConflict: 'user_id,game_name' })
         }
       }
-
       await fetchMyGames()
-
-      // 3. Amis Steam
       const resFriends = await fetch(`/api/steam-friends?steamid=${steamId}`)
       const dataFriends = await resFriends.json()
       let newFriends = 0
@@ -125,7 +118,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
           }
         }
       }
-
       setSteamResult({ friends: newFriends, friendsTotal: dataFriends.friends?.length || 0 })
     } catch(e) {
       alert('Erreur : ' + e.message)
@@ -135,6 +127,13 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
 
   const connectDiscord = () => {
     window.location.href = '/api/discord-auth'
+  }
+
+  const saveTag = async (key, value) => {
+    await supabase.from('profiles').update({ [key]: value }).eq('id', user.id)
+    setEditingTag(null)
+    setTagValue('')
+    if (onProfileUpdate) onProfileUpdate()
   }
 
   const handleAddGame = async () => {
@@ -159,9 +158,9 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
   const platforms_list = [
     { key: 'steam', label: 'Steam', bg: '#1b2838', color: '#c7d5e0', action: connectSteam, connected: profile?.steam_id },
     { key: 'discord', label: 'Discord', bg: '#5865F2', color: '#fff', action: connectDiscord, connected: profile?.discord_id, subtitle: profile?.discord_username },
-    { key: 'psn', label: 'PS', bg: '#003087', color: '#fff', action: null },
-    { key: 'xbox', label: 'Xbox', bg: '#107c10', color: '#fff', action: null },
-    { key: 'epic', label: 'Epic', bg: '#2d2d2d', color: '#fff', action: null },
+    { key: 'psn', label: 'PS', bg: '#003087', color: '#fff', tagKey: 'psn_tag', placeholder: 'ex: MonPseudoPS', connected: profile?.psn_tag },
+    { key: 'xbox', label: 'Xbox', bg: '#107c10', color: '#fff', tagKey: 'xbox_tag', placeholder: 'ex: MonGamertag', connected: profile?.xbox_tag },
+    { key: 'epic', label: 'Epic', bg: '#2d2d2d', color: '#fff', tagKey: 'epic_tag', placeholder: 'ex: MonEpicTag', connected: profile?.epic_tag },
   ]
 
   return (
@@ -199,18 +198,46 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
               <div style={{flex:1}}>
                 <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{p.label}</div>
                 <div style={{fontSize:'10px',color:'#bbb',marginTop:'1px'}}>
-                  {p.connected
-                    ? `✓ ${p.subtitle || 'Connecté'}`
-                    : p.action ? 'Non connecté' : 'Bientôt disponible'}
+                  {p.connected ? `✓ ${p.subtitle || p.connected}` : 'Non connecté'}
                 </div>
               </div>
               <button
-                onClick={p.action || (() => alert('Bientôt disponible'))}
+                onClick={() => {
+                  if (p.action) {
+                    p.action()
+                  } else if (p.tagKey) {
+                    setEditingTag(p.tagKey)
+                    setTagValue(p.connected || '')
+                  }
+                }}
                 disabled={p.key === 'steam' && steamImporting}
-                style={{fontSize:'11px',padding:'5px 12px',borderRadius:'20px',border:'1px solid #eee',background:'#fff',color:p.action?'#111':'#bbb',cursor:p.action?'pointer':'default',fontFamily:'inherit',fontWeight:'600',opacity:(p.key==='steam'&&steamImporting)?0.6:1}}>
-                {p.key === 'steam' && steamImporting ? '...' : p.connected ? 'Resync' : '+ Connecter'}
+                style={{fontSize:'11px',padding:'5px 12px',borderRadius:'20px',border:'1px solid #eee',background:'#fff',color:'#111',cursor:'pointer',fontFamily:'inherit',fontWeight:'600',opacity:(p.key==='steam'&&steamImporting)?0.6:1}}>
+                {p.key === 'steam' && steamImporting ? '...' : p.connected ? 'Modifier' : '+ Ajouter'}
               </button>
             </div>
+
+            {/* Champ de saisie manuelle PSN/Xbox/Epic */}
+            {p.tagKey && editingTag === p.tagKey && (
+              <div style={{padding:'0 14px 12px',display:'flex',gap:'6px'}}>
+                <input
+                  type="text"
+                  placeholder={p.placeholder}
+                  value={tagValue}
+                  onChange={e => setTagValue(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveTag(p.tagKey, tagValue)}
+                  autoFocus
+                  style={{flex:1,padding:'8px 12px',border:'1px solid #eee',borderRadius:'10px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none'}}
+                />
+                <button onClick={() => saveTag(p.tagKey, tagValue)}
+                  style={{padding:'8px 14px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'}}>
+                  ✓
+                </button>
+                <button onClick={() => setEditingTag(null)}
+                  style={{padding:'8px 10px',borderRadius:'10px',background:'#f5f5f5',color:'#888',border:'none',fontSize:'12px',cursor:'pointer',fontFamily:'inherit'}}>
+                  ✕
+                </button>
+              </div>
+            )}
 
             {p.key === 'steam' && steamImporting && (
               <div style={{margin:'0 14px 12px',padding:'10px 12px',background:'#f5f5f5',borderRadius:'10px',fontSize:'11px',color:'#888'}}>

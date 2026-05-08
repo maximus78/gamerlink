@@ -90,8 +90,29 @@ export default function Feed({ user, profile }) {
       .gt('expires_at', new Date().toISOString())
       .in('user_id', friendIds)
       .order('created_at', { ascending: false })
-    setStatuses(data || [])
-    const ids = [...new Set([...(data || []).map(s => s.user_id), user.id])]
+
+    // Toujours afficher ta propre carte même sans statut
+    const hasMyStatus = (data || []).some(s => s.user_id === user.id)
+    const allStatuses = hasMyStatus ? (data || []) : [
+      {
+        id: 'me-placeholder',
+        user_id: user.id,
+        type: 'off',
+        game: null,
+        expires_at: null,
+        invited_friends: [],
+        profiles: {
+          id: user.id,
+          name: profile?.name,
+          avatar_url: profile?.avatar_url,
+          phone: profile?.phone
+        }
+      },
+      ...(data || [])
+    ]
+
+    setStatuses(allStatuses)
+    const ids = [...new Set([...allStatuses.map(s => s.user_id)])]
     fetchGamesForUsers(ids)
     fetchHabitsForUsers(ids)
     setLoading(false)
@@ -266,7 +287,6 @@ export default function Feed({ user, profile }) {
 
   return (
     <div>
-      {/* Recherche */}
       <div style={{padding:'12px 16px 8px'}}>
         <div style={{position:'relative'}}>
           <svg style={{position:'absolute',left:'10px',top:'50%',transform:'translateY(-50%)',opacity:0.4}} width="14" height="14" viewBox="0 0 14 14">
@@ -299,133 +319,120 @@ export default function Feed({ user, profile }) {
         </div>
       )}
 
-      {filteredStatuses.length === 0 && filteredContacts.length === 0 ? (
-        <div style={{padding:'40px 16px',textAlign:'center'}}>
-          <div style={{fontSize:'32px',marginBottom:'12px'}}>🎮</div>
-          <div style={{fontSize:'14px',fontWeight:'600',color:'#111',marginBottom:'8px'}}>
-            {search ? 'Aucun résultat' : 'Personne n\'est en ligne'}
-          </div>
-          <div style={{fontSize:'12px',color:'#aaa',lineHeight:'1.5'}}>
-            {search ? 'Essaie un autre nom ou jeu.' : 'Mets ton statut ou invite des potes ci-dessous.'}
-          </div>
-        </div>
-      ) : (
-        <>
-          {filteredStatuses.length > 0 && (
-            <>
-              <div style={{padding:'4px 16px 6px',fontSize:'11px',color:'#aaa',fontWeight:'500'}}>
-                {filteredStatuses.filter(s => s.type !== 'off').length} joueur{filteredStatuses.filter(s => s.type !== 'off').length>1?'s':''} actif{filteredStatuses.filter(s => s.type !== 'off').length>1?'s':''} · {filteredStatuses.filter(s => s.type === 'off').length > 0 ? `${filteredStatuses.filter(s => s.type === 'off').length} pas dispo` : ''}
-              </div>
-              {filteredStatuses.map(s => {
-                const name = s.profiles?.name || 'Joueur'
-                const pill = getPill(s.type)
-                const isMe = s.user_id === user?.id
-                const games = userGames[s.user_id] || []
-                const genres = getGenres(games)
-                const habits = userHabits[s.user_id]
-                const top5 = games.slice(0, 5)
-                const isOff = s.type === 'off'
-                const invitedFriends = s.invited_friends || []
+      <>
+        {statuses.length > 0 && (
+          <>
+            <div style={{padding:'4px 16px 6px',fontSize:'11px',color:'#aaa',fontWeight:'500'}}>
+              {filteredStatuses.filter(s => s.type !== 'off').length} joueur{filteredStatuses.filter(s => s.type !== 'off').length>1?'s':''} actif{filteredStatuses.filter(s => s.type !== 'off').length>1?'s':''}
+              {filteredStatuses.filter(s => s.type === 'off').length > 0 ? ` · ${filteredStatuses.filter(s => s.type === 'off').length} pas dispo` : ''}
+            </div>
+            {filteredStatuses.map(s => {
+              const name = s.profiles?.name || 'Joueur'
+              const pill = getPill(s.type)
+              const isMe = s.user_id === user?.id
+              const games = userGames[s.user_id] || []
+              const genres = getGenres(games)
+              const habits = userHabits[s.user_id]
+              const top5 = games.slice(0, 5)
+              const isOff = s.type === 'off'
+              const invitedFriends = s.invited_friends || []
 
-                return (
-                  <div key={s.id}
-                    style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5',cursor:isMe?'default':'pointer',opacity:isOff?0.45:1}}
-                    onClick={() => !isMe && !isOff && setSelectedPote(s.user_id)}>
+              return (
+                <div key={s.id}
+                  style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5',cursor:isMe?'default':'pointer',opacity:isOff?0.45:1}}
+                  onClick={() => !isMe && !isOff && setSelectedPote(s.user_id)}>
 
-                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom: isOff ? '0' : '8px'}}>
-                      <div style={{position:'relative',flexShrink:0}}>
-                        <Avatar name={name} avatarUrl={s.profiles?.avatar_url} size={40} />
-                        <span style={{position:'absolute',bottom:'0',right:'0',width:'9px',height:'9px',borderRadius:'50%',background:getDot(s.type),border:'2px solid #fff'}}></span>
-                      </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{name}{isMe?' (toi)':''}</div>
-                        <div style={{fontSize:'11px',color:'#888',marginTop:'1px'}}>
-                          {isOff ? 'Pas dispo ce soir' : s.game}
-                        </div>
-                      </div>
-                      <span style={{fontSize:'10px',fontWeight:'600',padding:'3px 8px',borderRadius:'20px',background:pill.bg,color:pill.color,flexShrink:0}}>
-                        {pill.label}
-                      </span>
+                  <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:isOff?'0':'8px'}}>
+                    <div style={{position:'relative',flexShrink:0}}>
+                      <Avatar name={name} avatarUrl={s.profiles?.avatar_url} size={40} />
+                      <span style={{position:'absolute',bottom:'0',right:'0',width:'9px',height:'9px',borderRadius:'50%',background:getDot(s.type),border:'2px solid #fff'}}></span>
                     </div>
-
-                    {!isOff && (genres.length > 0 || habits) && (
-                      <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px'}}>
-                        {genres.map((g,i) => (
-                          <span key={i} style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>{g}</span>
-                        ))}
-                        {habits && (
-                          <span style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>
-                            {habits.timeLabel}{habits.isWeekend?' · Week-end':''}
-                          </span>
-                        )}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{name}{isMe?' (toi)':''}</div>
+                      <div style={{fontSize:'11px',color:'#888',marginTop:'1px'}}>
+                        {isOff ? 'Pas dispo' : s.game}
                       </div>
-                    )}
-
-                    {!isOff && <GameBubbles games={top5} />}
-
-                    {/* Potes invités */}
-                    {!isOff && invitedFriends.length > 0 && (
-                      <div style={{display:'flex',alignItems:'center',gap:'4px',marginBottom:'8px',flexWrap:'wrap'}}>
-                        <span style={{fontSize:'9px',color:'#aaa',fontWeight:'600'}}>avec</span>
-                        {invitedFriends.map((f, i) => (
-                          <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',borderRadius:'20px',background:'#f0f0f0'}}>
-                            {f.avatar_url ? (
-                              <img src={f.avatar_url} alt={f.name} style={{width:'14px',height:'14px',borderRadius:'50%',objectFit:'cover'}}/>
-                            ) : null}
-                            <span style={{fontSize:'10px',fontWeight:'600',color:'#555'}}>{f.name?.split(' ')[0]}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {!isMe && !isOff && (
-                      <button onClick={(e) => { e.stopPropagation(); handleRejoindre(s) }}
-                        style={{width:'100%',padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
-                        🎮 Je rejoins
-                      </button>
-                    )}
+                    </div>
+                    <span style={{fontSize:'10px',fontWeight:'600',padding:'3px 8px',borderRadius:'20px',background:pill.bg,color:pill.color,flexShrink:0}}>
+                      {pill.label}
+                    </span>
                   </div>
-                )
-              })}
-            </>
-          )}
 
-          {filteredContacts.length > 0 && (
-            <>
-              <div style={{padding:'10px 16px 6px',fontSize:'10px',fontWeight:'700',color:'#bbb',letterSpacing:'.08em',textTransform:'uppercase',marginTop:'6px'}}>
-                Potes sans l'app
-              </div>
-              {filteredContacts.map(c => (
-                <div key={c.id} style={{padding:'10px 16px',borderBottom:'1px solid #f5f5f5',display:'flex',alignItems:'center',gap:'10px',cursor:'pointer'}}
-                  onClick={() => setSelectedContact(c)}>
-                  <div style={{width:'36px',height:'36px',borderRadius:'50%',background:getColor(c.contact_name),color:getTextColor(c.contact_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',fontWeight:'700',border:'1.5px dashed #ddd',flexShrink:0}}>
-                    {getInitials(c.contact_name)}
-                  </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:'13px',fontWeight:'600',color:'#888'}}>{c.contact_name}</div>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginTop:'3px'}}>
-                      {getPlatformTags(c).slice(0,2).map((t,i) => (
-                        <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 6px',borderRadius:'6px',background:platformColors[t.plt]?.bg||'#eee'}}>
-                          <span style={{color:platformColors[t.plt]?.color||'#fff',display:'flex',alignItems:'center'}}>
-                            <PlatformLogo platform={t.plt} size={9}/>
-                          </span>
-                          <span style={{fontSize:'9px',color:platformColors[t.plt]?.color||'#fff',fontWeight:'500'}}>{t.label}</span>
+                  {!isOff && (genres.length > 0 || habits) && (
+                    <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px'}}>
+                      {genres.map((g,i) => (
+                        <span key={i} style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>{g}</span>
+                      ))}
+                      {habits && (
+                        <span style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>
+                          {habits.timeLabel}{habits.isWeekend?' · Week-end':''}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {!isOff && <GameBubbles games={top5} />}
+
+                  {!isOff && invitedFriends.length > 0 && (
+                    <div style={{display:'flex',alignItems:'center',gap:'4px',marginBottom:'8px',flexWrap:'wrap'}}>
+                      <span style={{fontSize:'9px',color:'#aaa',fontWeight:'600'}}>avec</span>
+                      {invitedFriends.map((f, i) => (
+                        <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',borderRadius:'20px',background:'#f0f0f0'}}>
+                          {f.avatar_url ? (
+                            <img src={f.avatar_url} alt={f.name} style={{width:'14px',height:'14px',borderRadius:'50%',objectFit:'cover'}}/>
+                          ) : null}
+                          <span style={{fontSize:'10px',fontWeight:'600',color:'#555'}}>{f.name?.split(' ')[0]}</span>
                         </div>
                       ))}
                     </div>
-                  </div>
-                  <button onClick={(e) => { e.stopPropagation(); handleInviterContact(c) }}
-                    style={{fontSize:'10px',color:'#888',background:'#f5f5f5',border:'1px solid #eee',padding:'4px 8px',borderRadius:'20px',cursor:'pointer',fontFamily:'inherit',fontWeight:'600',whiteSpace:'nowrap',flexShrink:0}}>
-                    Inviter
-                  </button>
-                </div>
-              ))}
-            </>
-          )}
-        </>
-      )}
+                  )}
 
-      {/* Inviter un pote */}
+                  {!isMe && !isOff && (
+                    <button onClick={(e) => { e.stopPropagation(); handleRejoindre(s) }}
+                      style={{width:'100%',padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',border:'none',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+                      🎮 Je rejoins
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </>
+        )}
+
+        {filteredContacts.length > 0 && (
+          <>
+            <div style={{padding:'10px 16px 6px',fontSize:'10px',fontWeight:'700',color:'#bbb',letterSpacing:'.08em',textTransform:'uppercase',marginTop:'6px'}}>
+              Potes sans l'app
+            </div>
+            {filteredContacts.map(c => (
+              <div key={c.id} style={{padding:'10px 16px',borderBottom:'1px solid #f5f5f5',display:'flex',alignItems:'center',gap:'10px',cursor:'pointer'}}
+                onClick={() => setSelectedContact(c)}>
+                <div style={{width:'36px',height:'36px',borderRadius:'50%',background:getColor(c.contact_name),color:getTextColor(c.contact_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',fontWeight:'700',border:'1.5px dashed #ddd',flexShrink:0}}>
+                  {getInitials(c.contact_name)}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'13px',fontWeight:'600',color:'#888'}}>{c.contact_name}</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginTop:'3px'}}>
+                    {getPlatformTags(c).slice(0,2).map((t,i) => (
+                      <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 6px',borderRadius:'6px',background:platformColors[t.plt]?.bg||'#eee'}}>
+                        <span style={{color:platformColors[t.plt]?.color||'#fff',display:'flex',alignItems:'center'}}>
+                          <PlatformLogo platform={t.plt} size={9}/>
+                        </span>
+                        <span style={{fontSize:'9px',color:platformColors[t.plt]?.color||'#fff',fontWeight:'500'}}>{t.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); handleInviterContact(c) }}
+                  style={{fontSize:'10px',color:'#888',background:'#f5f5f5',border:'1px solid #eee',padding:'4px 8px',borderRadius:'20px',cursor:'pointer',fontFamily:'inherit',fontWeight:'600',whiteSpace:'nowrap',flexShrink:0}}>
+                  Inviter
+                </button>
+              </div>
+            ))}
+          </>
+        )}
+      </>
+
       <div style={{margin:'16px 16px 0',border:'1px dashed #ddd',borderRadius:'14px',overflow:'hidden'}}>
         <div style={{background:'#fafaf9',padding:'10px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <span style={{fontSize:'11px',color:'#888',fontWeight:'600'}}>Inviter un pote</span>

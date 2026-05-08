@@ -333,15 +333,15 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
         {myGames.map(g => (
           <div key={g.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'9px 14px',borderTop:'1px solid #f0f0f0'}}>
             {g.cover_url ? (
-              <img src={g.cover_url} alt={g.game_name}
-                style={{width:'32px',height:'32px',borderRadius:'8px',objectFit:'cover',flexShrink:0}}/>
-            ) : (
-              <div style={{width:'32px',height:'32px',borderRadius:'8px',background:platformColors[g.platform]?.bg||'#eee',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                <span style={{color:platformColors[g.platform]?.color||'#888',display:'flex',alignItems:'center'}}>
-                  <PlatformLogo platform={g.platform} size={16}/>
-                </span>
-              </div>
-            )}
+  <img src={g.cover_url} alt={g.game_name}
+    onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }}
+    style={{width:'32px',height:'32px',borderRadius:'8px',objectFit:'cover',flexShrink:0}}/>
+) : null}
+<div style={{width:'32px',height:'32px',borderRadius:'8px',background:platformColors[g.platform]?.bg||'#eee',display:g.cover_url?'none':'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+  <span style={{color:platformColors[g.platform]?.color||'#888',display:'flex',alignItems:'center'}}>
+    <PlatformLogo platform={g.platform} size={16}/>
+  </span>
+</div>
             <div style={{flex:1}}>
               <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.game_name}</div>
               <div style={{fontSize:'10px',color:'#aaa',marginTop:'1px'}}>

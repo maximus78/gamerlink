@@ -23,7 +23,6 @@ export default function Feed({ user, profile }) {
   const myName = profile?.name?.split(' ')[0] || 'Ton pote'
   const contactsSupported = 'contacts' in navigator && 'ContactsManager' in window
 
-  // Logos SVG plateformes
   const PlatformLogo = ({ platform, size = 14 }) => {
     const logos = {
       Steam: <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.029 4.524 4.524s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.606 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.497 1.009 2.452-.397.957-1.497 1.41-2.455 1.015zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.662 0 3.015-1.35 3.015-3.015zm-5.273.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.251-1.017 2.265-2.266 2.265-1.252 0-2.265-1.014-2.265-2.265z"/></svg>,
@@ -41,6 +40,44 @@ export default function Feed({ user, profile }) {
     PS: { bg: '#003087', color: '#fff' },
     Epic: { bg: '#2d2d2d', color: '#fff' },
     Discord: { bg: '#5865F2', color: '#fff' }
+  }
+
+  // Bulles de jaquettes superposées
+  const GameBubbles = ({ games }) => {
+    const top = games.slice(0, 5)
+    const size = 28
+    const overlap = 10
+    const totalWidth = top.length > 0 ? size + (top.length - 1) * (size - overlap) : 0
+
+    return (
+      <div style={{position:'relative',width:`${totalWidth}px`,height:`${size}px`,flexShrink:0}}>
+        {top.map((g, i) => (
+          <div key={i} style={{
+            position:'absolute',
+            left:`${i * (size - overlap)}px`,
+            width:`${size}px`,
+            height:`${size}px`,
+            borderRadius:'50%',
+            border:'2px solid #fff',
+            overflow:'hidden',
+            background:platformColors[g.platform]?.bg || '#333',
+            zIndex:top.length - i,
+            boxShadow:'0 1px 3px rgba(0,0,0,0.15)'
+          }}>
+            {g.cover_url ? (
+              <img src={g.cover_url} alt={g.game_name}
+                style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+            ) : (
+              <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <span style={{color:platformColors[g.platform]?.color||'#fff',display:'flex',alignItems:'center'}}>
+                  <PlatformLogo platform={g.platform} size={12}/>
+                </span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    )
   }
 
   useEffect(() => {
@@ -102,7 +139,6 @@ export default function Feed({ user, profile }) {
         habits[h.user_id].hours.push(h.hour)
         habits[h.user_id].days.push(h.day_of_week)
       })
-      // Déduire les habitudes
       const result = {}
       Object.entries(habits).forEach(([uid, h]) => {
         const avgHour = h.hours.reduce((a, b) => a + b, 0) / h.hours.length
@@ -198,7 +234,7 @@ export default function Feed({ user, profile }) {
   }
 
   const handleRejoindre = (s) => {
-    const text = `Yo ! Je te rejoins sur ${s.game} 🎮 — GamerLink`
+    const text = `Yo ! Je te rejoins sur ${s.game} 🎮 — WhoPlays`
     if (isMobile) {
       window.open(`sms:${s.profiles?.phone || ''}?body=${encodeURIComponent(text)}`)
     } else {
@@ -207,19 +243,19 @@ export default function Feed({ user, profile }) {
   }
 
   const handleInviterContact = (c) => {
-    const text = `${myName} t'invite sur GamerLink — viens voir à quoi on joue ce soir : ${window.location.origin}`
+    const text = `${myName} t'invite sur WhoPlays — viens voir à quoi on joue ce soir : ${window.location.origin}`
     window.open(`sms:?body=${encodeURIComponent(text)}`)
   }
 
-  const shareText = `${myName} veut savoir à quoi tu joues sur GamerLink. Renseigne ton pseudo en 30 sec 👇\n${inviteLink}`
+  const shareText = `${myName} veut savoir à quoi tu joues sur WhoPlays. Renseigne ton pseudo en 30 sec 👇\n${inviteLink}`
   const shareNative = async () => {
     if (navigator.share) {
-      try { await navigator.share({ title: 'GamerLink', text: shareText, url: inviteLink }) } catch(e) {}
+      try { await navigator.share({ title: 'WhoPlays', text: shareText, url: inviteLink }) } catch(e) {}
     } else { navigator.clipboard.writeText(inviteLink); alert('Lien copié !') }
   }
   const shareWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`)
   const shareSMS = () => window.open(`sms:?body=${encodeURIComponent(shareText)}`)
-  const shareEmail = () => window.open(`mailto:?subject=${encodeURIComponent('GamerLink')}&body=${encodeURIComponent(shareText)}`)
+  const shareEmail = () => window.open(`mailto:?subject=${encodeURIComponent('WhoPlays')}&body=${encodeURIComponent(shareText)}`)
   const copyLink = () => { navigator.clipboard.writeText(inviteLink); alert('Lien copié !') }
 
   const getInitials = (name) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2) : '?'
@@ -292,7 +328,7 @@ export default function Feed({ user, profile }) {
       {scanDone && scanResult && (
         <div style={{margin:'0 16px 10px',padding:'12px 14px',background:'#EAF3DE',borderRadius:'12px',border:'1px solid #97C459'}}>
           <div style={{fontSize:'13px',fontWeight:'700',color:'#27500A'}}>
-            {scanResult.found > 0 ? `🎉 ${scanResult.found} pote${scanResult.found > 1 ? 's' : ''} trouvé${scanResult.found > 1 ? 's' : ''} !` : '😕 Aucun pote sur GamerLink pour l\'instant'}
+            {scanResult.found > 0 ? `🎉 ${scanResult.found} pote${scanResult.found > 1 ? 's' : ''} trouvé${scanResult.found > 1 ? 's' : ''} !` : '😕 Aucun pote sur WhoPlays pour l\'instant'}
           </div>
           <div style={{fontSize:'11px',color:'#639922',marginTop:'3px'}}>
             {scanResult.found > 0 ? 'Ils apparaissent maintenant dans ton feed' : `${scanResult.total} contacts scannés — invite tes potes`}
@@ -328,6 +364,7 @@ export default function Feed({ user, profile }) {
                 return (
                   <div key={s.id} style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5',cursor:isMe?'default':'pointer'}}
                     onClick={() => !isMe && setSelectedPote(s.user_id)}>
+
                     {/* Ligne principale */}
                     <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
                       <div style={{position:'relative',flexShrink:0}}>
@@ -345,7 +382,7 @@ export default function Feed({ user, profile }) {
 
                     {/* Genres + habitudes */}
                     {(genres.length > 0 || habits) && (
-                      <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'6px'}}>
+                      <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px'}}>
                         {genres.map((g,i) => (
                           <span key={i} style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>
                             {g}
@@ -359,19 +396,20 @@ export default function Feed({ user, profile }) {
                       </div>
                     )}
 
-                    {/* Top 5 jeux */}
+                    {/* Bulles jaquettes + nombre d'heures */}
                     {top5.length > 0 && (
-                      <div style={{display:'flex',gap:'3px',flexWrap:'wrap',marginBottom:'8px'}}>
-                        {top5.map((g,i) => (
-                          <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 6px',borderRadius:'6px',background:platformColors[g.platform]?.bg||'#333'}}>
-                            <span style={{color:platformColors[g.platform]?.color||'#fff',display:'flex',alignItems:'center'}}>
-                              <PlatformLogo platform={g.platform} size={9}/>
-                            </span>
-                            <span style={{fontSize:'9px',color:platformColors[g.platform]?.color||'#fff',fontWeight:'500',opacity:0.9}}>
-                              {g.game_name}
-                            </span>
+                      <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
+                        <GameBubbles games={top5} />
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:'9px',color:'#aaa',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                            {top5.map(g => g.game_name).join(' · ')}
                           </div>
-                        ))}
+                          {top5[0]?.hours_played > 0 && (
+                            <div style={{fontSize:'9px',color:'#bbb',marginTop:'1px'}}>
+                              {top5[0].hours_played}h sur {top5[0].game_name}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 

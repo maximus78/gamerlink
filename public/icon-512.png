@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fond -->
+  <rect width="512" height="512" rx="80" fill="#111111"/>
+  
+  <!-- Manette stylisée -->
+  <rect x="120" y="196" width="272" height="160" rx="80" fill="#222222"/>
+  
+  <!-- Croix directionnelle gauche -->
+  <rect x="168" y="256" width="48" height="16" rx="8" fill="#39ff14"/>
+  <rect x="184" y="240" width="16" height="48" rx="8" fill="#39ff14"/>
+  
+  <!-- Boutons droite -->
+  <circle cx="320" cy="248" r="12" fill="#39ff14" opacity="0.9"/>
+  <circle cx="344" cy="268" r="12" fill="#39ff14" opacity="0.6"/>
+  <circle cx="320" cy="288" r="12" fill="#39ff14" opacity="0.4"/>
+  <circle cx="296" cy="268" r="12" fill="#39ff14" opacity="0.7"/>
+  
+  <!-- Point central -->
+  <circle cx="256" cy="268" r="10" fill="#333333"/>
+  
+  <!-- W de WhoPlays -->
+  <text x="256" y="460" font-family="system-ui" font-size="72" font-weight="800" fill="#39ff14" text-anchor="middle" letter-spacing="-2">WP</text>
+</svg>

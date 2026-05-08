@@ -6,7 +6,10 @@ import Feed from './pages/Feed'
 import Status from './pages/Status'
 import Profil from './pages/Profil'
 import Invitation from './pages/Invitation'
+import Admin from './pages/Admin'
 import './App.css'
+
+const ADMIN_USER_ID = 'fb230653-43fa-4495-a6ce-d5b2e04b1b35'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -101,6 +104,8 @@ export default function App() {
     <Onboarding user={session.user} onComplete={() => fetchProfile(session.user.id, session.user)} />
   )
 
+  const isAdmin = session.user.id === ADMIN_USER_ID
+
   const navItems = [
     {
       key: 'feed',
@@ -123,7 +128,12 @@ export default function App() {
     if (page === 'feed') return <Feed user={session.user} profile={profile} onNavigate={setPage} />
     if (page === 'status') return <Status user={session.user} profile={profile} />
     if (page === 'profil') return <Profil user={session.user} profile={profile} onProfileUpdate={() => fetchProfile(session.user.id, session.user)} onSignOut={handleSignOut} />
+    if (page === 'admin') return <Admin user={session.user} />
   }
+
+  const pageTitle = page === 'admin'
+    ? '📊 Dashboard'
+    : navItems.find(n => n.key === page)?.label
 
   if (isDesktop) return (
     <div style={{display:'flex',minHeight:'100vh',background:'#f0efe8'}}>
@@ -138,6 +148,15 @@ export default function App() {
           </button>
         ))}
 
+        {/* Bouton Admin (visible uniquement pour Maxime) */}
+        {isAdmin && (
+          <button onClick={() => setPage('admin')}
+            style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderRadius:'12px',cursor:'pointer',fontSize:'14px',fontWeight:page==='admin'?'600':'500',color:page==='admin'?'#fff':'#888',background:page==='admin'?'#111':'transparent',border:'none',fontFamily:'inherit',width:'100%',textAlign:'left'}}>
+            <svg width="20" height="20" viewBox="0 0 20 20"><rect x="3" y="11" width="3" height="6" fill="currentColor" opacity=".85"/><rect x="8.5" y="7" width="3" height="10" fill="currentColor" opacity=".85"/><rect x="14" y="3" width="3" height="14" fill="currentColor" opacity=".85"/></svg>
+            Dashboard
+          </button>
+        )}
+
         <div style={{height:'1px',background:'#eee',margin:'8px 0'}}></div>
 
         <button onClick={handleSignOut}
@@ -146,7 +165,6 @@ export default function App() {
           Se déconnecter
         </button>
 
-        {/* Feedback desktop */}
         <button onClick={handleFeedback}
           style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderRadius:'12px',cursor:'pointer',fontSize:'14px',fontWeight:'500',color:'#888',background:'transparent',border:'none',fontFamily:'inherit',width:'100%',textAlign:'left'}}>
           💬 Donner un avis
@@ -172,7 +190,7 @@ export default function App() {
       <div style={{flex:1,maxWidth:'680px',background:'#fff',borderRight:'1px solid #eee',height:'100vh',display:'flex',flexDirection:'column'}}>
         <div style={{padding:'20px 24px 16px',borderBottom:'1px solid #f0f0f0',flexShrink:0}}>
           <div style={{fontSize:'18px',fontWeight:'700',color:'#111'}}>
-            {navItems.find(n => n.key === page)?.label}
+            {pageTitle}
           </div>
         </div>
         <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
@@ -194,6 +212,12 @@ export default function App() {
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 18px 8px',flexShrink:0,borderBottom:'1px solid #f5f5f5'}}>
         <span style={{fontSize:'20px',fontWeight:'700',color:'#111',letterSpacing:'-.5px'}}>WhoPlays</span>
         <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+          {isAdmin && (
+            <button onClick={() => setPage('admin')}
+              style={{fontSize:'11px',color:'#fff',background:'#111',border:'none',padding:'3px 10px',borderRadius:'20px',cursor:'pointer',fontFamily:'inherit',fontWeight:'600'}}>
+              📊
+            </button>
+          )}
           <span style={{fontSize:'11px',color:'#27500A',background:'#EAF3DE',padding:'3px 10px',borderRadius:'20px',fontWeight:'600',cursor:'pointer'}}
             onClick={() => setPage('profil')}>
             {profile.name?.split(' ')[0] || 'Toi'} →
@@ -209,7 +233,6 @@ export default function App() {
         {renderPage()}
       </div>
 
-      {/* Bouton feedback flottant mobile */}
       <div style={{position:'fixed',bottom:'80px',right:'16px',zIndex:999}}>
         <button onClick={handleFeedback}
           style={{width:'44px',height:'44px',borderRadius:'50%',background:'#111',color:'#fff',border:'none',fontSize:'20px',cursor:'pointer',boxShadow:'0 2px 12px rgba(0,0,0,0.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>

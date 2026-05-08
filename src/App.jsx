@@ -4,7 +4,7 @@ import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import Feed from './pages/Feed'
 import Status from './pages/Status'
-import Profil from './pages/Profil'
+import Profil from './pages/Profil.jsx'
 import Invitation from './pages/Invitation'
 import './App.css'
 
@@ -38,10 +38,18 @@ export default function App() {
   }, [])
 
   const fetchProfile = async (userId) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    setProfile(data)
-    setLoading(false)
+  const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+  
+  // Met à jour l'avatar Google à chaque connexion
+  const avatarUrl = supabase.auth.getSession && (await supabase.auth.getSession())?.data?.session?.user?.user_metadata?.avatar_url
+  if (avatarUrl && data && data.avatar_url !== avatarUrl) {
+    await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', userId)
+    data.avatar_url = avatarUrl
   }
+  
+  setProfile(data)
+  setLoading(false)
+}
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()

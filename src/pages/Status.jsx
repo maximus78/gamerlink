@@ -33,21 +33,18 @@ export default function Status({ user, profile }) {
     } else {
       setCurrentStatus(null)
     }
-    // Compter combien de potes voient le statut
-    if (data && data.length > 0) {
-      const { count } = await supabase
-        .from('friends').select('*', { count: 'exact', head: true })
-        .eq('friend_id', user.id)
-      setViewers(count || 0)
-    }
+    const { count } = await supabase
+      .from('friends').select('*', { count: 'exact', head: true })
+      .eq('friend_id', user.id)
+    setViewers(count || 0)
   }
 
   const getExpiry = () => {
     const now = new Date()
     if (when === 'now') now.setHours(now.getHours() + 2)
     else if (when === '1h') now.setHours(now.getHours() + 3)
-    else if (when === 'afternoon') { now.setHours(19, 0, 0, 0) }
-    else if (when === 'evening') { now.setHours(23, 59, 0, 0) }
+    else if (when === 'afternoon') now.setHours(19, 0, 0, 0)
+    else if (when === 'evening') now.setHours(23, 59, 0, 0)
     return now.toISOString()
   }
 
@@ -63,12 +60,25 @@ export default function Status({ user, profile }) {
     }
     setLoading(true)
     await supabase.from('statuses').delete().eq('user_id', user.id)
+
+    const gameName = selectedGame?.game_name || 'Jeu libre'
+
     await supabase.from('statuses').insert({
       user_id: user.id,
       type: status,
-      game: selectedGame?.game_name || selectedGame?.name || 'Jeu libre',
+      game: gameName,
       expires_at: getExpiry()
     })
+
+    // Archiver pour les habitudes — silencieux
+    await supabase.from('status_history').insert({
+      user_id: user.id,
+      game: gameName,
+      type: status,
+      hour: new Date().getHours(),
+      day_of_week: new Date().getDay()
+    })
+
     await fetchCurrentStatus()
     setLoading(false)
   }
@@ -116,6 +126,35 @@ export default function Status({ user, profile }) {
         </div>
       </div>
 
+      {/* Aperçu feed — ce que tes potes voient */}
+      <div style={{background:'#fff',border:'1px solid #eee',borderRadius:'14px',padding:'12px 14px',marginBottom:'14px'}}>
+        <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'10px'}}>
+          Ce que tes potes voient dans Qui joue
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt={profile?.name}
+              style={{width:'38px',height:'38px',borderRadius:'50%',objectFit:'cover',flexShrink:0}}/>
+          ) : (
+            <div style={{width:'38px',height:'38px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',color:'#27500A',flexShrink:0}}>
+              {profile?.name?.charAt(0) || 'T'}
+            </div>
+          )}
+          <div style={{flex:1}}>
+            <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{profile?.name?.split(' ')[0]} (toi)</div>
+            <div style={{fontSize:'11px',color:'#888',marginTop:'1px'}}>{currentStatus.game}</div>
+          </div>
+          <span style={{fontSize:'10px',fontWeight:'600',padding:'3px 8px',borderRadius:'20px',
+            background:currentStatus.type==='game'?'#EAF3DE':'#FCEBEB',
+            color:currentStatus.type==='game'?'#27500A':'#A32D2D',flexShrink:0}}>
+            {currentStatus.type==='game'?'En game':'Chaud 🔥'}
+          </span>
+        </div>
+        <div style={{marginTop:'10px',padding:'9px',borderRadius:'10px',background:'#111',color:'#fff',fontSize:'12px',fontWeight:'700',textAlign:'center'}}>
+          🎮 Je rejoins
+        </div>
+      </div>
+
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'12px'}}>
         <button onClick={handleExtend}
           style={{padding:'12px',borderRadius:'12px',background:'#fff',border:'1px solid #eee',fontSize:'13px',fontWeight:'600',color:'#111',cursor:'pointer',fontFamily:'inherit'}}>
@@ -149,7 +188,6 @@ export default function Status({ user, profile }) {
   // PRÉ-BROADCAST
   return (
     <div>
-
       {/* Statut */}
       <div style={{margin:'12px 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
         <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>
@@ -170,7 +208,7 @@ export default function Status({ user, profile }) {
         </div>
       </div>
 
-      {/* Jeu — depuis Mon Profil */}
+      {/* Jeux */}
       {status !== 'off' && (
         <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
           <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>
@@ -205,7 +243,7 @@ export default function Status({ user, profile }) {
           <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>
             Quand ?
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0'}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr'}}>
             {whenOptions.map((w, i) => (
               <div key={w.key} onClick={() => setWhen(w.key)}
                 style={{padding:'12px 14px',cursor:'pointer',borderTop:'1px solid #f0f0f0',borderRight:i%2===0?'1px solid #f0f0f0':'none',background:when===w.key?'#f0f9f0':'#fff',display:'flex',alignItems:'center',justifyContent:'space-between'}}>

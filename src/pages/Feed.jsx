@@ -6,6 +6,7 @@ export default function Feed({ user, profile }) {
   const [statuses, setStatuses] = useState([])
   const [contacts, setContacts] = useState([])
   const [userGames, setUserGames] = useState({})
+  const [userProfiles, setUserProfiles] = useState({})
   const [loading, setLoading] = useState(true)
   const [inviting, setInviting] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
@@ -29,7 +30,7 @@ export default function Feed({ user, profile }) {
   }, [])
 
   const fetchAll = async () => {
-    await Promise.all([fetchStatuses(), fetchContacts(), fetchGamesForUsers([user.id])])
+    await Promise.all([fetchStatuses(), fetchContacts()])
   }
 
   const fetchStatuses = async () => {
@@ -39,7 +40,7 @@ export default function Feed({ user, profile }) {
     friendIds.push(user.id)
     const { data } = await supabase
       .from('statuses')
-      .select('*, profiles(name, phone)')
+      .select('*, profiles(id, name, phone, avatar_url)')
       .gt('expires_at', new Date().toISOString())
       .in('user_id', friendIds)
       .order('created_at', { ascending: false })
@@ -81,9 +82,7 @@ export default function Feed({ user, profile }) {
     setInviting(false)
   }
 
-  // SMS pré-rempli pour rejoindre
   const handleRejoindre = (s) => {
-    const name = s.profiles?.name?.split(' ')[0] || 'ton pote'
     const text = `Yo ! Je te rejoins sur ${s.game} 🎮 — GamerLink`
     if (isMobile) {
       const phone = s.profiles?.phone
@@ -93,7 +92,6 @@ export default function Feed({ user, profile }) {
     }
   }
 
-  // SMS pré-rempli pour inviter un pote sans l'app
   const handleInviterContact = (c) => {
     const text = `${myName} t'invite sur GamerLink 🎮 — viens voir à quoi on joue ce soir : ${window.location.origin}`
     window.open(`sms:?body=${encodeURIComponent(text)}`)
@@ -130,7 +128,15 @@ export default function Feed({ user, profile }) {
     return tags
   }
 
-  // Filtrage recherche
+  const Avatar = ({ name, avatarUrl, size = 38 }) => avatarUrl ? (
+    <img src={avatarUrl} alt={name}
+      style={{width:`${size}px`,height:`${size}px`,borderRadius:'50%',objectFit:'cover',flexShrink:0}}/>
+  ) : (
+    <div style={{width:`${size}px`,height:`${size}px`,borderRadius:'50%',background:getColor(name),color:getTextColor(name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700',flexShrink:0}}>
+      {getInitials(name)}
+    </div>
+  )
+
   const filteredStatuses = statuses.filter(s => {
     if (!search) return true
     const name = s.profiles?.name || ''
@@ -149,7 +155,6 @@ export default function Feed({ user, profile }) {
 
   return (
     <div>
-
       {/* Barre de recherche */}
       <div style={{padding:'12px 16px 8px'}}>
         <div style={{position:'relative'}}>
@@ -157,13 +162,9 @@ export default function Feed({ user, profile }) {
             <circle cx="5.5" cy="5.5" r="4" fill="none" stroke="#111" strokeWidth="1.5"/>
             <line x1="8.5" y1="8.5" x2="13" y2="13" stroke="#111" strokeWidth="1.5"/>
           </svg>
-          <input
-            type="text"
-            placeholder="Rechercher un pote ou un jeu..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{width:'100%',padding:'9px 12px 9px 30px',border:'1px solid #eee',borderRadius:'12px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none',background:'#fafaf9',boxSizing:'border-box'}}
-          />
+          <input type="text" placeholder="Rechercher un pote ou un jeu..."
+            value={search} onChange={e => setSearch(e.target.value)}
+            style={{width:'100%',padding:'9px 12px 9px 30px',border:'1px solid #eee',borderRadius:'12px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none',background:'#fafaf9',boxSizing:'border-box'}}/>
         </div>
       </div>
 
@@ -191,13 +192,10 @@ export default function Feed({ user, profile }) {
                 const games = userGames[s.user_id] || []
                 return (
                   <div key={s.id} style={{padding:'12px 16px',borderBottom:'1px solid #f5f5f5'}}>
-                    {/* Ligne principale */}
                     <div style={{display:'flex',alignItems:'center',gap:'10px',cursor:isMe?'default':'pointer'}}
                       onClick={() => !isMe && setSelectedPote(s.user_id)}>
                       <div style={{position:'relative',flexShrink:0}}>
-                        <div style={{width:'38px',height:'38px',borderRadius:'50%',background:getColor(name),color:getTextColor(name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:'700'}}>
-                          {getInitials(name)}
-                        </div>
+                        <Avatar name={name} avatarUrl={s.profiles?.avatar_url} size={38} />
                         <span style={{position:'absolute',bottom:'0',right:'0',width:'9px',height:'9px',borderRadius:'50%',background:getDot(s.type),border:'2px solid #fff'}}></span>
                       </div>
                       <div style={{flex:1,minWidth:0}}>
@@ -217,8 +215,6 @@ export default function Feed({ user, profile }) {
                         {pill.label}
                       </span>
                     </div>
-
-                    {/* Bouton Je rejoins — seulement si c'est pas moi */}
                     {!isMe && (
                       <div style={{marginTop:'10px'}}>
                         <button onClick={() => handleRejoindre(s)}

@@ -59,6 +59,15 @@ export default function ProfilPote({ poteId, poteContact, onBack, user }) {
     'Discord': { bg:'#5865F2', color:'#fff' }
   }
 
+  const Avatar = ({ name, avatarUrl, size = 56 }) => avatarUrl ? (
+    <img src={avatarUrl} alt={name}
+      style={{width:`${size}px`,height:`${size}px`,borderRadius:'50%',objectFit:'cover',flexShrink:0,border:'2px solid #EAF3DE'}}/>
+  ) : (
+    <div style={{width:`${size}px`,height:`${size}px`,borderRadius:'50%',background:getColor(name),color:getTextColor(name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:size>40?'18px':'13px',fontWeight:'700',flexShrink:0}}>
+      {getInitials(name)}
+    </div>
+  )
+
   if (loading) return (
     <div style={{padding:'40px 16px',textAlign:'center',color:'#bbb',fontSize:'13px'}}>Chargement...</div>
   )
@@ -76,9 +85,7 @@ export default function ProfilPote({ poteId, poteContact, onBack, user }) {
       </div>
 
       <div style={{padding:'0 16px 16px',display:'flex',alignItems:'center',gap:'14px',borderBottom:'1px solid #f5f5f5'}}>
-        <div style={{width:'56px',height:'56px',borderRadius:'50%',background:getColor(name),color:getTextColor(name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',fontWeight:'700',flexShrink:0}}>
-          {getInitials(name)}
-        </div>
+        <Avatar name={name} avatarUrl={profile?.avatar_url} size={56} />
         <div style={{flex:1}}>
           <div style={{fontSize:'18px',fontWeight:'700',color:'#111'}}>{name}</div>
           {status ? (

@@ -6,7 +6,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
   const [newGame, setNewGame] = useState('')
   const [newPlatform, setNewPlatform] = useState('Steam')
   const [showAddGame, setShowAddGame] = useState(false)
-  const [loading, setLoading] = useState(false)
 
   const platforms = ['Steam', 'Xbox', 'PS', 'Epic', 'Discord']
 
@@ -18,9 +17,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     'Discord': { bg: '#5865F2', color: '#fff' }
   }
 
-  useEffect(() => {
-    fetchMyGames()
-  }, [])
+  useEffect(() => { fetchMyGames() }, [])
 
   const fetchMyGames = async () => {
     const { data } = await supabase
@@ -87,12 +84,16 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
 
   return (
     <div>
-
       {/* Hero profil */}
       <div style={{padding:'20px 16px 16px',display:'flex',alignItems:'center',gap:'14px',borderBottom:'1px solid #f5f5f5'}}>
-        <div style={{width:'56px',height:'56px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',fontWeight:'700',color:'#27500A',flexShrink:0}}>
-          {getInitials(profile?.name)}
-        </div>
+        {profile?.avatar_url ? (
+          <img src={profile.avatar_url} alt={profile?.name}
+            style={{width:'56px',height:'56px',borderRadius:'50%',objectFit:'cover',flexShrink:0,border:'3px solid #EAF3DE'}}/>
+        ) : (
+          <div style={{width:'56px',height:'56px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',fontWeight:'700',color:'#27500A',flexShrink:0}}>
+            {getInitials(profile?.name)}
+          </div>
+        )}
         <div style={{flex:1}}>
           <div style={{fontSize:'16px',fontWeight:'700',color:'#111'}}>{profile?.name}</div>
           <div style={{fontSize:'12px',color:'#aaa',marginTop:'2px'}}>📱 {profile?.phone}</div>
@@ -101,16 +102,15 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
 
       {/* Comptes connectés */}
       <div style={{margin:'14px 16px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
-        <div style={{padding:'10px 14px',background:'#fafaf9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{padding:'10px 14px',background:'#fafaf9'}}>
           <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Mes comptes</span>
         </div>
-
         {[
           { key: 'steam', label: 'Steam', bg: '#1b2838', color: '#c7d5e0', action: importFromSteam },
           { key: 'psn', label: 'PSN', bg: '#003087', color: '#fff', action: null },
           { key: 'xbox', label: 'Xbox', bg: '#107c10', color: '#fff', action: null },
           { key: 'epic', label: 'Epic', bg: '#2d2d2d', color: '#fff', action: null },
-        ].map((p, i) => (
+        ].map(p => (
           <div key={p.key} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 14px',borderTop:'1px solid #f0f0f0'}}>
             <div style={{width:'36px',height:'36px',borderRadius:'8px',background:p.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
               <span style={{fontSize:'10px',fontWeight:'700',color:p.color}}>{p.label}</span>
@@ -192,7 +192,6 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
           Se déconnecter
         </button>
       </div>
-
     </div>
   )
 }

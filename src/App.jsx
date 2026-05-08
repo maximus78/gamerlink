@@ -40,14 +40,12 @@ export default function App() {
   const fetchProfile = async (userId, authUser) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
 
-    // Mettre à jour avatar Google
     const avatarUrl = authUser?.user_metadata?.avatar_url
     if (avatarUrl && data && data.avatar_url !== avatarUrl) {
       await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', userId)
       if (data) data.avatar_url = avatarUrl
     }
 
-    // Gérer retour Discord OAuth
     const urlParams = new URLSearchParams(window.location.search)
     const discordId = urlParams.get('discord_id')
     const discordUsername = urlParams.get('discord_username')
@@ -68,12 +66,8 @@ export default function App() {
             .from('profiles').select('id, discord_id').in('discord_id', ids)
           if (matches) {
             for (const match of matches) {
-              await supabase.from('friends').upsert({
-                user_id: userId, friend_id: match.id
-              }, { onConflict: 'user_id,friend_id' })
-              await supabase.from('friends').upsert({
-                user_id: match.id, friend_id: userId
-              }, { onConflict: 'user_id,friend_id' })
+              await supabase.from('friends').upsert({ user_id: userId, friend_id: match.id }, { onConflict: 'user_id,friend_id' })
+              await supabase.from('friends').upsert({ user_id: match.id, friend_id: userId }, { onConflict: 'user_id,friend_id' })
             }
           }
         }
@@ -89,11 +83,15 @@ export default function App() {
     await supabase.auth.signOut()
   }
 
+  const handleFeedback = () => {
+    window.open('sms:+33698072498?body=Feedback WhoPlays : ')
+  }
+
   if (isInvitation) return <Invitation />
 
   if (loading) return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f0efe8'}}>
-      <div style={{fontSize:'24px',fontWeight:'700',color:'#111'}}>GamerLink</div>
+      <div style={{fontSize:'24px',fontWeight:'700',color:'#111'}}>WhoPlays</div>
     </div>
   )
 
@@ -130,7 +128,7 @@ export default function App() {
   if (isDesktop) return (
     <div style={{display:'flex',minHeight:'100vh',background:'#f0efe8'}}>
       <div style={{width:'240px',background:'#fff',borderRight:'1px solid #eee',padding:'28px 16px',display:'flex',flexDirection:'column',gap:'4px',position:'sticky',top:0,height:'100vh',flexShrink:0,overflowY:'auto'}}>
-        <div style={{fontSize:'20px',fontWeight:'700',color:'#111',letterSpacing:'-.5px',marginBottom:'24px',padding:'0 10px'}}>GamerLink</div>
+        <div style={{fontSize:'20px',fontWeight:'700',color:'#111',letterSpacing:'-.5px',marginBottom:'24px',padding:'0 10px'}}>WhoPlays</div>
 
         {navItems.map(n => (
           <button key={n.key} onClick={() => setPage(n.key)}
@@ -146,6 +144,12 @@ export default function App() {
           style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderRadius:'12px',cursor:'pointer',fontSize:'14px',fontWeight:'500',color:'#e63946',background:'transparent',border:'none',fontFamily:'inherit',width:'100%',textAlign:'left'}}>
           <svg width="18" height="18" viewBox="0 0 18 18"><path d="M7 3H4a1 1 0 00-1 1v10a1 1 0 001 1h3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/><polyline points="12,6 15,9 12,12" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/><line x1="15" y1="9" x2="7" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
           Se déconnecter
+        </button>
+
+        {/* Feedback desktop */}
+        <button onClick={handleFeedback}
+          style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderRadius:'12px',cursor:'pointer',fontSize:'14px',fontWeight:'500',color:'#888',background:'transparent',border:'none',fontFamily:'inherit',width:'100%',textAlign:'left'}}>
+          💬 Donner un avis
         </button>
 
         <div style={{marginTop:'auto',padding:'12px 14px',borderRadius:'12px',background:'#fafaf9',display:'flex',alignItems:'center',gap:'10px',cursor:'pointer'}}
@@ -188,7 +192,7 @@ export default function App() {
   return (
     <div style={{width:'100%',background:'#fff',display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 18px 8px',flexShrink:0,borderBottom:'1px solid #f5f5f5'}}>
-        <span style={{fontSize:'20px',fontWeight:'700',color:'#111',letterSpacing:'-.5px'}}>GamerLink</span>
+        <span style={{fontSize:'20px',fontWeight:'700',color:'#111',letterSpacing:'-.5px'}}>WhoPlays</span>
         <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
           <span style={{fontSize:'11px',color:'#27500A',background:'#EAF3DE',padding:'3px 10px',borderRadius:'20px',fontWeight:'600',cursor:'pointer'}}
             onClick={() => setPage('profil')}>
@@ -203,6 +207,14 @@ export default function App() {
 
       <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
         {renderPage()}
+      </div>
+
+      {/* Bouton feedback flottant mobile */}
+      <div style={{position:'fixed',bottom:'80px',right:'16px',zIndex:999}}>
+        <button onClick={handleFeedback}
+          style={{width:'44px',height:'44px',borderRadius:'50%',background:'#111',color:'#fff',border:'none',fontSize:'20px',cursor:'pointer',boxShadow:'0 2px 12px rgba(0,0,0,0.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          💬
+        </button>
       </div>
 
       <div style={{display:'flex',borderTop:'1px solid #eee',padding:'8px 0 34px',background:'#fff',flexShrink:0}}>

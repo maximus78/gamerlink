@@ -239,6 +239,14 @@ export default function Status({ user, profile }) {
     return now.toISOString()
   }
 
+  const getScheduledWhen = () => {
+    if (when === 'now') return 'Maintenant'
+    if (when === '1h') return 'Dans 1h'
+    if (when === 'afternoon') return 'Cet après-midi'
+    if (when === 'evening') return 'Ce soir'
+    return 'Maintenant'
+  }
+
   const handleBroadcast = async () => {
     if (status === 'off') {
       await supabase.from('statuses').delete().eq('user_id', user.id)
@@ -250,7 +258,9 @@ export default function Status({ user, profile }) {
     const gameName = selectedGame?.game_name || 'Jeu libre'
     await supabase.from('statuses').insert({
       user_id: user.id, type: status, game: gameName,
-      expires_at: getExpiry(), invited_friends: invitedFriends
+      expires_at: getExpiry(),
+      invited_friends: invitedFriends,
+      scheduled_when: getScheduledWhen()
     })
     await supabase.from('status_history').insert({
       user_id: user.id, game: gameName, type: status,
@@ -324,6 +334,7 @@ export default function Status({ user, profile }) {
               <div style={{fontSize:'11px',fontWeight:'700',color:'#639922',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'4px'}}>Statut actif</div>
               <div style={{fontSize:'15px',fontWeight:'700',color:'#111',marginBottom:'2px'}}>{currentStatus.game}</div>
               <div style={{fontSize:'11px',color:'#888',marginBottom:'6px'}}>
+                {currentStatus.scheduled_when && <span>{currentStatus.scheduled_when} · </span>}
                 {viewers > 0 ? `${viewers} pote${viewers > 1 ? 's' : ''} peuvent te voir` : 'Visible par tes potes'}
               </div>
               {invitedFriends.length > 0 && (
@@ -375,7 +386,6 @@ export default function Status({ user, profile }) {
             </div>
           )}
 
-          {/* Qui joue avec moi — potes app + sans app */}
           {status !== 'off' && allPotes.length > 0 && (
             <div style={{margin:'0 16px 10px',border:'1px solid #eee',borderRadius:'16px',overflow:'hidden'}}>
               <div style={{padding:'8px 14px',background:'#fafaf9',fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.08em'}}>Qui joue avec moi ?</div>

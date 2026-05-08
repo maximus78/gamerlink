@@ -6,7 +6,6 @@ export default function Feed({ user, profile }) {
   const [statuses, setStatuses] = useState([])
   const [contacts, setContacts] = useState([])
   const [userGames, setUserGames] = useState({})
-  const [userProfiles, setUserProfiles] = useState({})
   const [loading, setLoading] = useState(true)
   const [inviting, setInviting] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
@@ -15,9 +14,13 @@ export default function Feed({ user, profile }) {
   const [selectedPote, setSelectedPote] = useState(null)
   const [selectedContact, setSelectedContact] = useState(null)
   const [search, setSearch] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [scanDone, setScanDone] = useState(false)
+  const [scanResult, setScanResult] = useState(null)
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
   const myName = profile?.name?.split(' ')[0] || 'Ton pote'
+  const contactsSupported = 'contacts' in navigator && 'ContactsManager' in window
 
   useEffect(() => {
     fetchAll()
@@ -69,6 +72,67 @@ export default function Feed({ user, profile }) {
     const { data } = await supabase
       .from('contact_gamertags').select('*').eq('owner_id', user.id)
     setContacts(data || [])
+  }
+
+  // SCAN CONTACTS
+  const handleScanContacts = async () => {
+    if (!contactsSupported) {
+      alert('Le scan de contacts n\'est disponible que sur mobile (Android Chrome ou Safari iOS)')
+      return
+    }
+    setScanning(true)
+    try {
+      const props = ['name', 'tel']
+      const opts = { multiple: true }
+      const rawContacts = await navigator.contacts.select(props, opts)
+      if (!rawContacts || rawContacts.length === 0) {
+        setScanning(false)
+        return
+      }
+
+      // Extraire tous les numéros
+      const phones = []
+      rawContacts.forEach(c => {
+        (c.tel || []).forEach(tel => {
+          const clean = tel.replace(/\s/g, '').replace(/\./g, '').replace(/-/g, '')
+          if (clean) phones.push({ phone: clean, name: c.name?.[0] || 'Contact' })
+        })
+      })
+
+      if (phones.length === 0) { setScanning(false); return }
+
+      // Chercher les matches dans Supabase
+      const phoneNumbers = phones.map(p => p.phone)
+      const { data: matches } = await supabase
+        .from('profiles')
+        .select('id, name, phone, avatar_url')
+        .in('phone', phoneNumbers)
+
+      // Pour chaque match ajouter comme ami
+      let newFriends = 0
+      if (matches && matches.length > 0) {
+        for (const match of matches) {
+          if (match.id === user.id) continue
+          const { error } = await supabase.from('friends').upsert({
+            user_id: user.id,
+            friend_id: match.id
+          }, { onConflict: 'user_id,friend_id' })
+          if (!error) newFriends++
+          // Relation inverse
+          await supabase.from('friends').upsert({
+            user_id: match.id,
+            friend_id: user.id
+          }, { onConflict: 'user_id,friend_id' })
+        }
+      }
+
+      setScanResult({ total: phones.length, found: newFriends })
+      setScanDone(true)
+      await fetchStatuses()
+    } catch(e) {
+      console.error(e)
+    }
+    setScanning(false)
   }
 
   const generateInvite = async () => {
@@ -167,6 +231,32 @@ export default function Feed({ user, profile }) {
             style={{width:'100%',padding:'9px 12px 9px 30px',border:'1px solid #eee',borderRadius:'12px',fontSize:'13px',color:'#111',fontFamily:'inherit',outline:'none',background:'#fafaf9',boxSizing:'border-box'}}/>
         </div>
       </div>
+
+      {/* Bouton scan contacts */}
+      {!scanDone && isMobile && (
+        <div style={{padding:'0 16px 10px'}}>
+          <button onClick={handleScanContacts} disabled={scanning}
+            style={{width:'100%',padding:'11px',borderRadius:'12px',background:'#EAF3DE',color:'#27500A',border:'1px solid #97C459',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
+            {scanning ? '🔍 Scan en cours...' : '📱 Scanner mes contacts — trouver mes potes'}
+          </button>
+        </div>
+      )}
+
+      {/* Résultat du scan */}
+      {scanDone && scanResult && (
+        <div style={{margin:'0 16px 10px',padding:'12px 14px',background:'#EAF3DE',borderRadius:'12px',border:'1px solid #97C459'}}>
+          <div style={{fontSize:'13px',fontWeight:'700',color:'#27500A'}}>
+            {scanResult.found > 0
+              ? `🎉 ${scanResult.found} pote${scanResult.found > 1 ? 's' : ''} trouvé${scanResult.found > 1 ? 's' : ''} sur GamerLink !`
+              : '😕 Aucun pote sur GamerLink pour l\'instant'}
+          </div>
+          <div style={{fontSize:'11px',color:'#639922',marginTop:'3px'}}>
+            {scanResult.found > 0
+              ? 'Ils apparaissent maintenant dans ton feed'
+              : `${scanResult.total} contacts scannés — invite tes potes à rejoindre`}
+          </div>
+        </div>
+      )}
 
       {filteredStatuses.length === 0 && filteredContacts.length === 0 ? (
         <div style={{padding:'40px 16px',textAlign:'center'}}>

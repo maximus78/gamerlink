@@ -3,9 +3,9 @@ import { supabase } from '../supabase'
 
 export default function Invitation() {
   const [invitation, setInvitation] = useState(null)
-  const [friendStatuses, setFriendStatuses] = useState([])
   const [inviterGames, setInviterGames] = useState([])
-  const [inviterGamertags, setInviterGamertags] = useState({})
+  const [inviterFriends, setInviterFriends] = useState([])
+  const [inviterStatus, setInviterStatus] = useState(null)
   const [steam, setSteam] = useState('')
   const [xbox, setXbox] = useState('')
   const [discord, setDiscord] = useState('')
@@ -34,60 +34,55 @@ export default function Invitation() {
     if (data?.discord_tag) setDiscord(data.discord_tag)
     if (data?.psn_tag) setPsn(data.psn_tag)
     if (data?.epic_tag) setEpic(data.epic_tag)
-
     if (data?.profiles?.id) {
       await Promise.all([
-        fetchFriendStatuses(data.profiles.id),
+        fetchInviterStatus(data.profiles.id),
         fetchInviterGames(data.profiles.id),
-        fetchInviterGamertags(data.profiles.id),
+        fetchInviterFriends(data.profiles.id),
       ])
     }
     setLoading(false)
   }
 
-  const fetchFriendStatuses = async (userId) => {
-    const { data: friends } = await supabase
-      .from('friends').select('friend_id').eq('user_id', userId)
-    const friendIds = (friends || []).map(f => f.friend_id)
-    friendIds.push(userId)
+  const fetchInviterStatus = async (userId) => {
     const { data } = await supabase
-      .from('statuses')
-      .select('*, profiles(name, avatar_url)')
+      .from('statuses').select('*').eq('user_id', userId)
       .gt('expires_at', new Date().toISOString())
-      .in('user_id', friendIds)
-      .order('created_at', { ascending: false })
-      .limit(3)
-    setFriendStatuses(data || [])
+      .order('created_at', { ascending: false }).limit(1)
+    setInviterStatus(data && data.length > 0 ? data[0] : null)
   }
 
   const fetchInviterGames = async (userId) => {
     const { data } = await supabase
       .from('user_games').select('*').eq('user_id', userId)
-      .order('hours_played', { ascending: false }).limit(5)
+      .order('hours_played', { ascending: false }).limit(6)
     setInviterGames(data || [])
   }
 
-  const fetchInviterGamertags = async (userId) => {
-    const { data } = await supabase
-      .from('gamertags').select('*').eq('user_id', userId)
-    if (data) {
-      const tags = {}
-      data.forEach(g => { tags[g.platform] = g.tag })
-      setInviterGamertags(tags)
-    }
+  const fetchInviterFriends = async (userId) => {
+    const { data: friends } = await supabase
+      .from('friends').select('friend_id').eq('user_id', userId)
+    if (!friends || friends.length === 0) return
+    const friendIds = friends.map(f => f.friend_id)
+    const { data: profiles } = await supabase
+      .from('profiles').select('id, name, avatar_url').in('id', friendIds).limit(5)
+    setInviterFriends(profiles || [])
   }
 
   const getGenres = (games) => {
     const genreMap = {
-      'Warzone': 'FPS', 'CS2': 'FPS', 'Valorant': 'FPS', 'Apex': 'FPS',
-      'Rocket League': 'Sport', 'FC 26': 'Sport', 'FIFA': 'Sport',
-      'Fortnite': 'Battle Royale', 'PUBG': 'Battle Royale',
-      'League of Legends': 'MOBA', 'Dota': 'MOBA',
+      'warzone': 'FPS', 'cs2': 'FPS', 'valorant': 'FPS', 'apex': 'FPS',
+      'rocket league': 'Sport', 'fc ': 'Sport', 'fifa': 'Sport', 'nba': 'Sport',
+      'fortnite': 'Battle Royale', 'pubg': 'Battle Royale',
+      'league': 'MOBA', 'dota': 'MOBA',
+      'minecraft': 'Survie', 'rust': 'Survie',
+      'wow': 'RPG', 'elden': 'RPG',
     }
     const genres = new Set()
     games.forEach(g => {
+      const name = g.game_name?.toLowerCase() || ''
       Object.entries(genreMap).forEach(([key, genre]) => {
-        if (g.game_name?.toLowerCase().includes(key.toLowerCase())) genres.add(genre)
+        if (name.includes(key)) genres.add(genre)
       })
     })
     return [...genres].slice(0, 3)
@@ -115,12 +110,10 @@ export default function Invitation() {
   const getInitials = (name) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2) : '?'
   const getColor = (name) => ['#C0DD97','#CECBF6','#FAC775','#B5D4F4','#F5C4B3','#9FE1CB'][name ? name.charCodeAt(0)%6 : 0]
   const getTextColor = (name) => ['#27500A','#3C3489','#633806','#0C447C','#712B13','#085041'][name ? name.charCodeAt(0)%6 : 0]
-  const getPill = (type) => type==='game' ? {label:'En game',bg:'#EAF3DE',color:'#27500A'} : {label:'Chaud 🔥',bg:'#FCEBEB',color:'#A32D2D'}
 
   const hasValue = steam || xbox || discord || psn || epic
   const inviterName = invitation?.profiles?.name?.split(' ')[0]
   const inviterAvatar = invitation?.profiles?.avatar_url
-  const inviterStatus = friendStatuses.find(s => s.user_id === invitation?.profiles?.id)
   const genres = getGenres(inviterGames)
 
   const platformColors = {
@@ -182,9 +175,9 @@ export default function Invitation() {
     <div style={{minHeight:'100vh',background:'#f0efe8',padding:'20px',display:'flex',flexDirection:'column',alignItems:'center'}}>
       <div style={{width:'100%',maxWidth:'360px'}}>
 
+        {/* Header */}
         <div style={{textAlign:'center',marginBottom:'16px',paddingTop:'12px'}}>
-          <div style={{fontSize:'22px',fontWeight:'700',color:'#111',marginBottom:'4px'}}>GamerLink</div>
-          <div style={{fontSize:'13px',color:'#888'}}>Snap Map pour le gaming 🎮</div>
+          <div style={{fontSize:'22px',fontWeight:'700',color:'#111'}}>GamerLink</div>
         </div>
 
         {/* Vitrine inviteur */}
@@ -194,9 +187,9 @@ export default function Invitation() {
           <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'14px',paddingBottom:'12px',borderBottom:'1px solid #f5f5f5'}}>
             {inviterAvatar ? (
               <img src={inviterAvatar} alt={inviterName}
-                style={{width:'42px',height:'42px',borderRadius:'50%',objectFit:'cover',flexShrink:0,border:'2px solid #EAF3DE'}}/>
+                style={{width:'44px',height:'44px',borderRadius:'50%',objectFit:'cover',flexShrink:0,border:'2px solid #EAF3DE'}}/>
             ) : (
-              <div style={{width:'42px',height:'42px',borderRadius:'50%',background:getColor(invitation.profiles?.name),color:getTextColor(invitation.profiles?.name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',fontWeight:'700',flexShrink:0}}>
+              <div style={{width:'44px',height:'44px',borderRadius:'50%',background:getColor(invitation.profiles?.name),color:getTextColor(invitation.profiles?.name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'15px',fontWeight:'700',flexShrink:0}}>
                 {getInitials(invitation.profiles?.name)}
               </div>
             )}
@@ -229,16 +222,16 @@ export default function Invitation() {
               <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'6px'}}>
                 Joue habituellement à
               </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>
-                {inviterGames.slice(0,4).map((g, i) => (
+              <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginBottom:'6px'}}>
+                {inviterGames.slice(0,4).map((g,i) => (
                   <span key={i} style={{fontSize:'11px',fontWeight:'600',padding:'3px 8px',borderRadius:'20px',background:'#f5f5f5',color:'#555'}}>
                     {g.game_name}
                   </span>
                 ))}
               </div>
               {genres.length > 0 && (
-                <div style={{display:'flex',gap:'4px',marginTop:'6px'}}>
-                  {genres.map((g, i) => (
+                <div style={{display:'flex',gap:'4px'}}>
+                  {genres.map((g,i) => (
                     <span key={i} style={{fontSize:'10px',padding:'2px 7px',borderRadius:'20px',background:'#EAF3DE',color:'#27500A',fontWeight:'600'}}>
                       {g}
                     </span>
@@ -248,19 +241,28 @@ export default function Invitation() {
             </div>
           )}
 
-          {/* Gamertags inviteur */}
-          {Object.keys(inviterGamertags).length > 0 && (
-            <div>
-              <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'6px'}}>
-                Ses gamertags
+          {/* Potes déjà sur GamerLink */}
+          {inviterFriends.length > 0 && (
+            <div style={{paddingTop:'10px',borderTop:'1px solid #f5f5f5'}}>
+              <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'8px'}}>
+                {inviterFriends.length} pote{inviterFriends.length>1?'s':''} déjà sur GamerLink
               </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>
-                {Object.entries(inviterGamertags).slice(0,3).map(([plt, tag], i) => (
-                  <div key={i} style={{display:'inline-flex',alignItems:'center',border:`1px solid ${platformColors[plt] ? '#ddd' : '#eee'}`,borderRadius:'6px',overflow:'hidden'}}>
-                    <span style={{fontSize:'9px',fontWeight:'700',padding:'2px 5px',background:platformColors[plt]?.bg||'#eee',color:platformColors[plt]?.color||'#888'}}>{plt}</span>
-                    <span style={{fontSize:'10px',fontWeight:'500',padding:'2px 7px 2px 4px',color:'#444'}}>{tag}</span>
-                  </div>
+              <div style={{display:'flex',gap:'4px'}}>
+                {inviterFriends.slice(0,5).map((f,i) => (
+                  f.avatar_url ? (
+                    <img key={i} src={f.avatar_url} alt={f.name}
+                      style={{width:'28px',height:'28px',borderRadius:'50%',objectFit:'cover',border:'2px solid #fff'}}/>
+                  ) : (
+                    <div key={i} style={{width:'28px',height:'28px',borderRadius:'50%',background:getColor(f.name),color:getTextColor(f.name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:'700',border:'2px solid #fff',flexShrink:0}}>
+                      {getInitials(f.name)}
+                    </div>
+                  )
                 ))}
+                {inviterFriends.length > 5 && (
+                  <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'#f0f0f0',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:'700',color:'#888'}}>
+                    +{inviterFriends.length - 5}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -285,7 +287,7 @@ export default function Invitation() {
             </div>
           </div>
 
-          {fields.map((f, i) => (
+          {fields.map((f,i) => (
             <div key={i} style={{marginBottom:'8px'}}>
               <div style={{fontSize:'11px',fontWeight:'600',color:'#888',marginBottom:'4px',display:'flex',alignItems:'center',gap:'6px'}}>
                 <div style={{width:'18px',height:'18px',borderRadius:'4px',background:f.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>

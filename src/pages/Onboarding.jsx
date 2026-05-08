@@ -6,6 +6,10 @@ export default function Onboarding({ user, onComplete }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const avatarUrl = user.user_metadata?.avatar_url || null
+  const fullName = user.user_metadata?.full_name || ''
+  const initials = fullName ? fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2) : '?'
+
   const handleSubmit = async () => {
     if (phone.length < 10) {
       setError('Entre un numéro valide')
@@ -14,8 +18,9 @@ export default function Onboarding({ user, onComplete }) {
     setLoading(true)
     const { error } = await supabase.from('profiles').upsert({
       id: user.id,
-      name: user.user_metadata.full_name,
+      name: fullName,
       phone: phone.replace(/\s/g, ''),
+      avatar_url: avatarUrl,
     }, { onConflict: 'id' })
     if (error) {
       setError('Erreur : ' + error.message)
@@ -25,12 +30,34 @@ export default function Onboarding({ user, onComplete }) {
     onComplete()
   }
 
+  const handleSkip = async () => {
+    await supabase.from('profiles').upsert({
+      id: user.id,
+      name: fullName,
+      avatar_url: avatarUrl,
+    }, { onConflict: 'id' })
+    onComplete()
+  }
+
   return (
     <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'#f0efe8',padding:'20px'}}>
       <div style={{width:'100%',maxWidth:'360px',background:'#fff',borderRadius:'24px',padding:'32px 24px'}}>
-        <div style={{marginBottom:'24px'}}>
+
+        {/* Avatar Google */}
+        <div style={{display:'flex',justifyContent:'center',marginBottom:'20px'}}>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={fullName}
+              style={{width:'64px',height:'64px',borderRadius:'50%',objectFit:'cover',border:'3px solid #EAF3DE'}}/>
+          ) : (
+            <div style={{width:'64px',height:'64px',borderRadius:'50%',background:'#EAF3DE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'22px',fontWeight:'700',color:'#27500A'}}>
+              {initials}
+            </div>
+          )}
+        </div>
+
+        <div style={{marginBottom:'24px',textAlign:'center'}}>
           <div style={{fontSize:'22px',fontWeight:'700',color:'#111',marginBottom:'8px'}}>
-            Dernière étape 👋
+            Salut {fullName.split(' ')[0]} 👋
           </div>
           <div style={{fontSize:'14px',color:'#888',lineHeight:'1.5'}}>
             Ton numéro permet à tes potes de te retrouver automatiquement quand ils s'inscrivent.
@@ -45,7 +72,8 @@ export default function Onboarding({ user, onComplete }) {
           placeholder="06 12 34 56 78"
           value={phone}
           onChange={e => setPhone(e.target.value)}
-          style={{width:'100%',padding:'12px',border:'1px solid #eee',borderRadius:'12px',fontSize:'16px',color:'#111',fontFamily:'inherit',marginBottom:'8px',outline:'none'}}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          style={{width:'100%',padding:'12px',border:'1px solid #eee',borderRadius:'12px',fontSize:'16px',color:'#111',fontFamily:'inherit',marginBottom:'8px',outline:'none',boxSizing:'border-box'}}
         />
         {error && <div style={{fontSize:'12px',color:'#e63946',marginBottom:'8px'}}>{error}</div>}
 
@@ -54,11 +82,11 @@ export default function Onboarding({ user, onComplete }) {
         </div>
 
         <button onClick={handleSubmit} disabled={loading}
-          style={{width:'100%',padding:'13px',borderRadius:'12px',background:'#111',color:'#fff',border:'none',fontSize:'13px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',opacity: loading ? 0.7 : 1}}>
+          style={{width:'100%',padding:'13px',borderRadius:'12px',background:'#111',color:'#fff',border:'none',fontSize:'13px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit',opacity:loading?0.7:1}}>
           {loading ? 'Enregistrement...' : "C'est parti →"}
         </button>
 
-        <button onClick={onComplete}
+        <button onClick={handleSkip}
           style={{width:'100%',padding:'10px',borderRadius:'12px',background:'transparent',color:'#bbb',border:'none',fontSize:'12px',cursor:'pointer',fontFamily:'inherit',marginTop:'8px'}}>
           Passer pour l'instant
         </button>

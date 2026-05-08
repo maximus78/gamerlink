@@ -82,6 +82,8 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     setSteamResult(null)
     try {
       await supabase.from('profiles').update({ steam_id: steamId }).eq('id', user.id)
+
+      // 1. Jeux possédés
       const resGames = await fetch(`/api/steam?steamid=${steamId}`)
       const dataGames = await resGames.json()
       if (dataGames.games && dataGames.games.length > 0) {
@@ -91,8 +93,23 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
             hours_played: Math.floor(g.hours || 0), last_played: new Date().toISOString()
           }, { onConflict: 'user_id,game_name' })
         }
-        await fetchMyGames()
       }
+
+      // 2. Jeux récents — last_played précis
+      const resRecent = await fetch(`/api/steam?steamid=${steamId}&type=recent`)
+      const dataRecent = await resRecent.json()
+      if (dataRecent.games && dataRecent.games.length > 0) {
+        for (const g of dataRecent.games) {
+          await supabase.from('user_games').upsert({
+            user_id: user.id, game_name: g.name, platform: 'Steam',
+            hours_played: g.hours_total, last_played: g.last_played
+          }, { onConflict: 'user_id,game_name' })
+        }
+      }
+
+      await fetchMyGames()
+
+      // 3. Amis Steam
       const resFriends = await fetch(`/api/steam-friends?steamid=${steamId}`)
       const dataFriends = await resFriends.json()
       let newFriends = 0
@@ -108,6 +125,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
           }
         }
       }
+
       setSteamResult({ friends: newFriends, friendsTotal: dataFriends.friends?.length || 0 })
     } catch(e) {
       alert('Erreur : ' + e.message)
@@ -141,7 +159,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
   const platforms_list = [
     { key: 'steam', label: 'Steam', bg: '#1b2838', color: '#c7d5e0', action: connectSteam, connected: profile?.steam_id },
     { key: 'discord', label: 'Discord', bg: '#5865F2', color: '#fff', action: connectDiscord, connected: profile?.discord_id, subtitle: profile?.discord_username },
-    { key: 'psn', label: 'PSN', bg: '#003087', color: '#fff', action: null },
+    { key: 'psn', label: 'PS', bg: '#003087', color: '#fff', action: null },
     { key: 'xbox', label: 'Xbox', bg: '#107c10', color: '#fff', action: null },
     { key: 'epic', label: 'Epic', bg: '#2d2d2d', color: '#fff', action: null },
   ]
@@ -170,7 +188,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
           <span style={{fontSize:'11px',fontWeight:'700',color:'#888',textTransform:'uppercase',letterSpacing:'.06em'}}>Mes comptes</span>
         </div>
 
-        {platforms_list.map((p, i) => (
+        {platforms_list.map((p) => (
           <div key={p.key}>
             <div style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 14px',borderTop:'1px solid #f0f0f0'}}>
               <div style={{width:'36px',height:'36px',borderRadius:'8px',background:p.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -194,10 +212,9 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
               </button>
             </div>
 
-            {/* Résultat Steam */}
             {p.key === 'steam' && steamImporting && (
               <div style={{margin:'0 14px 12px',padding:'10px 12px',background:'#f5f5f5',borderRadius:'10px',fontSize:'11px',color:'#888'}}>
-                🔍 Import jeux + scan amis Steam en cours...
+                🔍 Import jeux récents + scan amis Steam...
               </div>
             )}
             {p.key === 'steam' && steamResult && (
@@ -294,7 +311,10 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
             </div>
             <div style={{flex:1}}>
               <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.game_name}</div>
-              <div style={{fontSize:'10px',color:'#aaa',marginTop:'1px'}}>{g.platform}{g.hours_played ? ` · ${g.hours_played}h` : ''}</div>
+              <div style={{fontSize:'10px',color:'#aaa',marginTop:'1px'}}>
+                {g.platform}{g.hours_played ? ` · ${g.hours_played}h` : ''}
+                {g.last_played ? ` · ${new Date(g.last_played).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}` : ''}
+              </div>
             </div>
             <button onClick={() => handleDeleteGame(g.id)}
               style={{background:'none',border:'none',cursor:'pointer',color:'#ddd',fontSize:'16px',padding:'4px'}}>×</button>

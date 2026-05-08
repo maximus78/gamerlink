@@ -2,11 +2,25 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET')
 
-  const { steamid } = req.query
+  const { steamid, type } = req.query
   if (!steamid) return res.status(400).json({ error: 'steamid required' })
 
   try {
-    // API officielle Steam — jeux possédés
+    if (type === 'recent') {
+      const response = await fetch(
+        `https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/?key=${process.env.STEAM_API_KEY}&steamid=${steamid}&count=10`
+      )
+      const data = await response.json()
+      const games = (data.response?.games || []).map(g => ({
+        name: g.name,
+        hours_recent: Math.round(g.playtime_2weeks / 60 * 10) / 10,
+        hours_total: Math.round(g.playtime_forever / 60),
+        appid: g.appid,
+        last_played: new Date().toISOString()
+      }))
+      return res.status(200).json({ games })
+    }
+
     const response = await fetch(
       `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${process.env.STEAM_API_KEY}&steamid=${steamid}&include_appinfo=true&include_played_free_games=true`
     )

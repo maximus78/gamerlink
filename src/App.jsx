@@ -7,6 +7,7 @@ import Status from './pages/Status'
 import Profil from './pages/Profil'
 import Invitation from './pages/Invitation'
 import Admin from './pages/Admin'
+import Demo from './pages/Demo'
 import './App.css'
 
 const ADMIN_USER_ID = 'fb230653-43fa-4495-a6ce-d5b2e04b1b35'
@@ -19,6 +20,8 @@ export default function App() {
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768)
 
   const isInvitation = new URLSearchParams(window.location.search).get('token')
+  const isDemo = new URLSearchParams(window.location.search).get('demo') === 'true' 
+    || window.location.pathname === '/demo'
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768)
@@ -27,7 +30,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (isInvitation) { setLoading(false); return }
+    if (isInvitation || isDemo) { setLoading(false); return }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       if (session) fetchProfile(session.user.id, session.user)
@@ -75,6 +78,37 @@ export default function App() {
           }
         }
       }
+    }
+
+    // 🎮 Gestion retour Xbox via OpenXBL
+    const xboxId = urlParams.get('xbox_id')
+    const xboxGamertag = urlParams.get('xbox_gamertag')
+    const xboxAvatarUrl = urlParams.get('xbox_avatar_url')
+    const xboxGamerscore = urlParams.get('xbox_gamerscore')
+    const xboxError = urlParams.get('xbox_error')
+
+    if (xboxError) {
+      console.error('Xbox connection error:', xboxError)
+      alert(`Erreur connexion Xbox : ${xboxError}`)
+    }
+
+    if (xboxId && xboxGamertag && data) {
+      await supabase.from('profiles').update({
+        xbox_id: xboxId,
+        xbox_gamertag: xboxGamertag,
+        xbox_avatar_url: xboxAvatarUrl || null,
+        xbox_gamerscore: parseInt(xboxGamerscore || '0', 10),
+        xbox_connected_at: new Date().toISOString(),
+      }).eq('id', userId)
+      
+      data.xbox_id = xboxId
+      data.xbox_gamertag = xboxGamertag
+      data.xbox_avatar_url = xboxAvatarUrl
+      data.xbox_gamerscore = parseInt(xboxGamerscore || '0', 10)
+    }
+
+    // Nettoyage de l'URL après traitement
+    if (discordId || xboxId || xboxError) {
       window.history.replaceState({}, '', window.location.pathname)
     }
 
@@ -89,6 +123,8 @@ export default function App() {
   const handleFeedback = () => {
     window.open('https://tally.so/r/vGEPP8')
   }
+
+  if (isDemo) return <Demo />
 
   if (isInvitation) return <Invitation />
 
@@ -148,7 +184,6 @@ export default function App() {
           </button>
         ))}
 
-        {/* Bouton Admin (visible uniquement pour Maxime) */}
         {isAdmin && (
           <button onClick={() => setPage('admin')}
             style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderRadius:'12px',cursor:'pointer',fontSize:'14px',fontWeight:page==='admin'?'600':'500',color:page==='admin'?'#fff':'#888',background:page==='admin'?'#111':'transparent',border:'none',fontFamily:'inherit',width:'100%',textAlign:'left'}}>

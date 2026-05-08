@@ -75,7 +75,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
       platform: newPlatform,
       last_played: new Date().toISOString(),
       cover_url: coverUrl
-    }, { onConflict: 'user_id,game_name' })
+    }, { onConflict: 'user_id,game_name', ignoreDuplicates: false })
     setNewGame('')
     setShowAddGame(false)
     fetchMyGames()
@@ -98,7 +98,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
             hours_played: Math.floor(g.hours || 0),
             last_played: new Date().toISOString(),
             cover_url: g.cover_url
-          }, { onConflict: 'user_id,game_name' })
+          }, { onConflict: 'user_id,game_name', ignoreDuplicates: false })
         }
       }
 
@@ -111,7 +111,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
             hours_played: g.hours_total,
             last_played: g.last_played,
             cover_url: g.cover_url
-          }, { onConflict: 'user_id,game_name' })
+          }, { onConflict: 'user_id,game_name', ignoreDuplicates: false })
         }
       }
 
@@ -155,7 +155,7 @@ export default function Profil({ user, profile, onProfileUpdate, onSignOut }) {
     await supabase.from('user_games').upsert({
       user_id: user.id, game_name: newGame.trim(), platform: newPlatform,
       last_played: new Date().toISOString()
-    }, { onConflict: 'user_id,game_name' })
+    }, { onConflict: 'user_id,game_name', ignoreDuplicates: false })
     setNewGame('')
     setShowAddGame(false)
     setGameSuggestions([])

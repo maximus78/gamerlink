@@ -4,8 +4,10 @@ import { supabase } from '../supabase'
 export default function ProfilPote({ poteId, poteContact, onBack, user }) {
   const [profile, setProfile] = useState(null)
   const [games, setGames] = useState([])
+  const [steamGames, setSteamGames] = useState([])
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loadingSteam, setLoadingSteam] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -23,16 +25,51 @@ export default function ProfilPote({ poteId, poteContact, onBack, user }) {
     setLoading(false)
   }
 
-  const loadContact = () => {
+  const loadContact = async () => {
     setProfile({ name: poteContact.contact_name })
-    const g = []
-    if (poteContact.steam_tag) g.push({ game_name: poteContact.steam_tag, platform: 'Steam' })
-    if (poteContact.xbox_tag) g.push({ game_name: poteContact.xbox_tag, platform: 'Xbox' })
-    if (poteContact.psn_tag) g.push({ game_name: poteContact.psn_tag, platform: 'PS' })
-    if (poteContact.epic_tag) g.push({ game_name: poteContact.epic_tag, platform: 'Epic' })
-    if (poteContact.discord_tag) g.push({ game_name: poteContact.discord_tag, platform: 'Discord' })
-    setGames(g)
+    const tags = []
+    if (poteContact.xbox_tag) tags.push({ game_name: poteContact.xbox_tag, platform: 'Xbox', isTag: true })
+    if (poteContact.psn_tag) tags.push({ game_name: poteContact.psn_tag, platform: 'PS', isTag: true })
+    if (poteContact.epic_tag) tags.push({ game_name: poteContact.epic_tag, platform: 'Epic', isTag: true })
+    if (poteContact.discord_tag) tags.push({ game_name: poteContact.discord_tag, platform: 'Discord', isTag: true })
+    setGames(tags)
     setLoading(false)
+
+    // Récupérer les jeux Steam si steam_tag dispo
+    if (poteContact.steam_tag) {
+      fetchSteamGames(poteContact.steam_tag)
+    }
+  }
+
+  const fetchSteamGames = async (steamTag) => {
+    setLoadingSteam(true)
+    try {
+      // Nettoyer le tag — extraire juste le pseudo
+      const clean = steamTag
+        .replace('https://steamcommunity.com/id/', '')
+        .replace('https://steamcommunity.com/profiles/', '')
+        .replace(/\/$/, '')
+        .trim()
+
+      // Si c'est un SteamID numérique → direct
+      if (/^\d{17}$/.test(clean)) {
+        const res = await fetch(`/api/steam?steamid=${clean}`)
+        const data = await res.json()
+        if (data.games) setSteamGames(data.games)
+      } else {
+        // Résoudre le pseudo → SteamID
+        const resVanity = await fetch(`/api/steam?vanity=${encodeURIComponent(clean)}`)
+        const vanityData = await resVanity.json()
+        if (vanityData.steamid) {
+          const res = await fetch(`/api/steam?steamid=${vanityData.steamid}`)
+          const data = await res.json()
+          if (data.games) setSteamGames(data.games)
+        }
+      }
+    } catch(e) {
+      console.error('Steam fetch error:', e)
+    }
+    setLoadingSteam(false)
   }
 
   const handleDelete = async () => {
@@ -45,6 +82,26 @@ export default function ProfilPote({ poteId, poteContact, onBack, user }) {
       await supabase.from('contact_gamertags').delete().eq('id', poteContact.id)
     }
     onBack()
+  }
+
+  const getGenres = (games) => {
+    const genreMap = {
+      'warzone': 'FPS', 'cs2': 'FPS', 'valorant': 'FPS', 'apex': 'FPS', 'battlefield': 'FPS', 'cod': 'FPS',
+      'rocket league': 'Sport', 'fc ': 'Sport', 'fifa': 'Sport', 'nba': 'Sport',
+      'fortnite': 'Battle Royale', 'pubg': 'Battle Royale',
+      'league': 'MOBA', 'dota': 'MOBA',
+      'minecraft': 'Survie', 'rust': 'Survie',
+      'wow': 'RPG', 'elden': 'RPG', 'diablo': 'RPG',
+      'gta': 'Open World',
+    }
+    const genres = new Set()
+    games.forEach(g => {
+      const name = (g.name || g.game_name || '').toLowerCase()
+      Object.entries(genreMap).forEach(([key, genre]) => {
+        if (name.includes(key)) genres.add(genre)
+      })
+    })
+    return [...genres].slice(0, 3)
   }
 
   const getInitials = (name) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2) : '?'
@@ -84,6 +141,8 @@ export default function ProfilPote({ poteId, poteContact, onBack, user }) {
   )
 
   const name = profile?.name || 'Joueur'
+  const allSteamGames = steamGames.slice(0, 10)
+  const genres = getGenres([...allSteamGames, ...games])
 
   return (
     <div>
@@ -95,7 +154,7 @@ export default function ProfilPote({ poteId, poteContact, onBack, user }) {
         <span style={{fontSize:'14px',fontWeight:'600',color:'#888'}}>Retour</span>
       </div>
 
-      {/* Header pote */}
+      {/* Header */}
       <div style={{padding:'0 16px 16px',display:'flex',alignItems:'center',gap:'14px',borderBottom:'1px solid #f5f5f5'}}>
         <Avatar name={name} avatarUrl={profile?.avatar_url} size={56} />
         <div style={{flex:1}}>
@@ -107,12 +166,26 @@ export default function ProfilPote({ poteId, poteContact, onBack, user }) {
           ) : (
             <div style={{fontSize:'12px',color:'#aaa',marginTop:'4px'}}>Hors ligne</div>
           )}
+          {/* Genres déduits */}
+          {genres.length > 0 && (
+            <div style={{display:'flex',gap:'4px',marginTop:'6px',flexWrap:'wrap'}}>
+              {genres.map((g,i) => (
+                <span key={i} style={{fontSize:'9px',padding:'2px 6px',borderRadius:'20px',background:'#f0f0f0',color:'#666',fontWeight:'600'}}>{g}</span>
+              ))}
+            </div>
+          )}
           {/* Gamertags connectés */}
-          <div style={{display:'flex',gap:'6px',marginTop:'8px',flexWrap:'wrap'}}>
+          <div style={{display:'flex',gap:'6px',marginTop:'6px',flexWrap:'wrap'}}>
             {profile?.steam_id && (
               <div style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 8px',borderRadius:'20px',background:'#1b2838'}}>
                 <span style={{color:'#c7d5e0',display:'flex'}}><PlatformLogo platform="Steam" size={12}/></span>
                 <span style={{fontSize:'10px',color:'#c7d5e0',fontWeight:'600'}}>Steam</span>
+              </div>
+            )}
+            {poteContact?.steam_tag && (
+              <div style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 8px',borderRadius:'20px',background:'#1b2838'}}>
+                <span style={{color:'#c7d5e0',display:'flex'}}><PlatformLogo platform="Steam" size={12}/></span>
+                <span style={{fontSize:'10px',color:'#c7d5e0',fontWeight:'600'}}>{poteContact.steam_tag}</span>
               </div>
             )}
             {profile?.discord_username && (
@@ -129,11 +202,42 @@ export default function ProfilPote({ poteId, poteContact, onBack, user }) {
         </button>
       </div>
 
-      {/* Jeux */}
+      {/* Jeux Steam récupérés */}
+      {poteContact?.steam_tag && (
+        <div style={{padding:'14px 16px 0'}}>
+          <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'10px',display:'flex',alignItems:'center',gap:'8px'}}>
+            Jeux Steam
+            {loadingSteam && <span style={{fontSize:'10px',color:'#bbb',fontWeight:'400'}}>chargement...</span>}
+          </div>
+          {!loadingSteam && allSteamGames.length === 0 && (
+            <div style={{fontSize:'12px',color:'#bbb',marginBottom:'12px'}}>Profil Steam privé ou introuvable</div>
+          )}
+          {allSteamGames.map((g, i) => (
+            <div key={i} style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 0',borderBottom:'1px solid #f5f5f5'}}>
+              {g.cover_url ? (
+                <img src={g.cover_url} alt={g.name}
+                  onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }}
+                  style={{width:'36px',height:'36px',borderRadius:'8px',objectFit:'cover',flexShrink:0}}/>
+              ) : null}
+              <div style={{width:'36px',height:'36px',borderRadius:'8px',background:'#1b2838',display:g.cover_url?'none':'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <span style={{color:'#c7d5e0',display:'flex'}}><PlatformLogo platform="Steam" size={16}/></span>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.name}</div>
+                <div style={{fontSize:'10px',color:'#aaa',marginTop:'1px'}}>
+                  Steam{g.hours > 0 ? ` · ${g.hours}h` : ''}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Autres gamertags */}
       {games.length > 0 && (
         <div style={{padding:'14px 16px 0'}}>
           <div style={{fontSize:'10px',fontWeight:'700',color:'#bbb',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'10px'}}>
-            {poteId ? 'Jeux joués' : 'Gamertags'}
+            {poteId ? 'Jeux joués' : 'Autres comptes'}
           </div>
           {games.map((g, i) => (
             <div key={i} style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 0',borderBottom:'1px solid #f5f5f5'}}>
@@ -144,12 +248,7 @@ export default function ProfilPote({ poteId, poteContact, onBack, user }) {
               </div>
               <div style={{flex:1}}>
                 <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{g.game_name}</div>
-                <div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'2px'}}>
-                  <span style={{fontSize:'10px',color:'#aaa'}}>{g.platform}</span>
-                  {g.hours_played > 0 && (
-                    <span style={{fontSize:'10px',color:'#aaa'}}>· {g.hours_played}h</span>
-                  )}
-                </div>
+                <div style={{fontSize:'10px',color:'#aaa',marginTop:'2px'}}>{g.platform}</div>
               </div>
               {g.last_played && (
                 <div style={{fontSize:'10px',color:'#bbb'}}>
@@ -161,7 +260,7 @@ export default function ProfilPote({ poteId, poteContact, onBack, user }) {
         </div>
       )}
 
-      {games.length === 0 && (
+      {games.length === 0 && steamGames.length === 0 && !loadingSteam && (
         <div style={{padding:'30px 16px',textAlign:'center'}}>
           <div style={{fontSize:'24px',marginBottom:'8px'}}>🎮</div>
           <div style={{fontSize:'13px',color:'#aaa'}}>Aucun jeu renseigné pour l'instant</div>

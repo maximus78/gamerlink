@@ -2,10 +2,23 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET')
 
-  const { steamid, type } = req.query
-  if (!steamid) return res.status(400).json({ error: 'steamid required' })
+  const { steamid, type, vanity } = req.query
 
   try {
+    // Résoudre un pseudo Steam → SteamID
+    if (vanity) {
+      const response = await fetch(
+        `https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key=${process.env.STEAM_API_KEY}&vanityurl=${encodeURIComponent(vanity)}`
+      )
+      const data = await response.json()
+      if (data.response?.success === 1) {
+        return res.status(200).json({ steamid: data.response.steamid })
+      }
+      return res.status(200).json({ error: 'not_found' })
+    }
+
+    if (!steamid) return res.status(400).json({ error: 'steamid required' })
+
     if (type === 'recent') {
       const response = await fetch(
         `https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/?key=${process.env.STEAM_API_KEY}&steamid=${steamid}&count=10`

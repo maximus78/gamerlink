@@ -6,13 +6,42 @@ const ADMIN_USER_ID = 'fb230653-43fa-4495-a6ce-d5b2e04b1b35'
 export default function Admin({ user }) {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState(null)
+  const [demoEnabled, setDemoEnabled] = useState(false)
+  const [demoToggling, setDemoToggling] = useState(false)
 
   const authorized = user?.id === ADMIN_USER_ID
 
   useEffect(() => {
-    if (authorized) loadStats()
+    if (authorized) {
+      loadStats()
+      loadDemoStatus()
+    }
     else setLoading(false)
   }, [authorized])
+
+  async function loadDemoStatus() {
+    const { data } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'demo_enabled')
+      .single()
+    setDemoEnabled(data?.value === true || data?.value === 'true')
+  }
+
+  async function toggleDemo() {
+    setDemoToggling(true)
+    const newValue = !demoEnabled
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ key: 'demo_enabled', value: newValue, updated_at: new Date().toISOString() })
+    
+    if (error) {
+      alert('Erreur : ' + error.message)
+    } else {
+      setDemoEnabled(newValue)
+    }
+    setDemoToggling(false)
+  }
 
   async function loadStats() {
     const { count: totalUsers } = await supabase
@@ -138,6 +167,45 @@ export default function Admin({ user }) {
       <p style={{ color: '#888', marginBottom: 20, fontSize: 12 }}>
         Mis à jour : {new Date().toLocaleString('fr-FR')}
       </p>
+
+      {/* 🎮 Toggle Mode Démo */}
+      <div style={{ ...card, marginBottom: 20, background: demoEnabled ? '#FFFBEA' : '#fff', borderColor: demoEnabled ? '#FFE8A0' : '#eee' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 4 }}>
+              🎮 Mode démo {demoEnabled ? <span style={{color:'#27500A'}}>· ACTIVÉ</span> : <span style={{color:'#888'}}>· désactivé</span>}
+            </div>
+            <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>
+              {demoEnabled 
+                ? 'Le bouton "Voir la démo" est visible sur Login. Les URLs /demo et /demo/join sont accessibles.'
+                : 'La démo est cachée. Active-la quand tu lances ta vidéo pour que les visiteurs puissent tester.'}
+            </div>
+            {demoEnabled && (
+              <div style={{ marginTop: 8, fontSize: 11, color: '#7A5C00' }}>
+                URLs actives : <code style={{background:'#fff',padding:'2px 6px',borderRadius:4}}>/demo</code> · <code style={{background:'#fff',padding:'2px 6px',borderRadius:4}}>/demo/join</code>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={toggleDemo}
+            disabled={demoToggling}
+            style={{
+              background: demoEnabled ? '#27500A' : '#111',
+              color: '#fff',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: demoToggling ? 'wait' : 'pointer',
+              fontFamily: 'inherit',
+              minWidth: 100,
+              opacity: demoToggling ? 0.6 : 1,
+            }}>
+            {demoToggling ? '...' : (demoEnabled ? '✓ ACTIVÉ' : 'Activer')}
+          </button>
+        </div>
+      </div>
 
       <div style={{
         display: 'grid',

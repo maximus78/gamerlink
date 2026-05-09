@@ -1,6 +1,22 @@
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
 export default function Login() {
+  const [demoEnabled, setDemoEnabled] = useState(false)
+
+  useEffect(() => {
+    loadDemoStatus()
+  }, [])
+
+  async function loadDemoStatus() {
+    const { data } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'demo_enabled')
+      .single()
+    setDemoEnabled(data?.value === true || data?.value === 'true')
+  }
+
   const handleGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -14,7 +30,7 @@ export default function Login() {
     <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'#f0efe8',padding:'20px'}}>
       <div style={{width:'100%',maxWidth:'360px',background:'#fff',borderRadius:'24px',padding:'32px 24px',boxShadow:'0 4px 24px rgba(0,0,0,0.08)'}}>
         <div style={{textAlign:'center',marginBottom:'32px'}}>
-          <div style={{fontSize:'32px',fontWeight:'700',color:'#111',letterSpacing:'-1px',marginBottom:'8px'}}>GamerLink</div>
+          <div style={{fontSize:'32px',fontWeight:'700',color:'#111',letterSpacing:'-1px',marginBottom:'8px'}}>WhoPlays</div>
           <div style={{fontSize:'14px',color:'#888',lineHeight:'1.5'}}>Retrouve tes potes gamers et rejoins leurs sessions en temps réel</div>
         </div>
 
@@ -32,6 +48,25 @@ export default function Login() {
         <div style={{fontSize:'11px',color:'#bbb',textAlign:'center',lineHeight:'1.5'}}>
           En continuant tu acceptes que tes données de jeu soient utilisées pour connecter tes potes
         </div>
+
+        {demoEnabled && (
+          <>
+            <div style={{display:'flex',alignItems:'center',gap:'10px',margin:'24px 0 16px'}}>
+              <div style={{flex:1,height:'1px',background:'#eee'}}></div>
+              <span style={{fontSize:'10px',color:'#bbb',textTransform:'uppercase',letterSpacing:'.5px',fontWeight:'600'}}>ou</span>
+              <div style={{flex:1,height:'1px',background:'#eee'}}></div>
+            </div>
+
+            <a href="/demo"
+              style={{display:'block',width:'100%',padding:'12px',borderRadius:'12px',border:'1px solid #eee',background:'#fafaf9',textAlign:'center',cursor:'pointer',fontSize:'13px',fontWeight:'600',color:'#666',fontFamily:'inherit',textDecoration:'none',boxSizing:'border-box'}}>
+              🎮 Voir la démo (sans inscription)
+            </a>
+            
+            <div style={{fontSize:'11px',color:'#bbb',textAlign:'center',marginTop:'8px'}}>
+              Découvre WhoPlays en 30 secondes
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

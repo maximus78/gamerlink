@@ -6,10 +6,6 @@ const FRIENDS_PREVIEW = [
     avatar_text: '#B85C00',
     activity: 'Joue à Red Dead Redemption 2',
     detail: '🎮 Steam · depuis 23 min',
-    tags: [
-      { label: 'Compétitif', emoji: '🎯', bg: '#EAF3DE', color: '#27500A' },
-      { label: 'Soirs', emoji: '🌆', bg: '#FFF3CC', color: '#7A5C00' },
-    ],
   },
   {
     name: 'Sarah',
@@ -18,10 +14,6 @@ const FRIENDS_PREVIEW = [
     avatar_text: '#5C2D91',
     activity: 'Cherche pour FIFA 25',
     detail: '🎮 PS5 · cherche 1 pote',
-    tags: [
-      { label: 'Coop', emoji: '🤝', bg: '#FFE8E8', color: '#A02050' },
-      { label: 'Weekends', emoji: '🎮', bg: '#E0F0FF', color: '#1F4D80' },
-    ],
   },
   {
     name: 'Lucas',
@@ -30,10 +22,6 @@ const FRIENDS_PREVIEW = [
     avatar_text: '#1F4D80',
     activity: 'Joue à Valorant',
     detail: '🎮 Steam · ranked',
-    tags: [
-      { label: 'Compétitif', emoji: '🎯', bg: '#EAF3DE', color: '#27500A' },
-      { label: 'Quotidien', emoji: '🔥', bg: '#FFE0E0', color: '#A02020' },
-    ],
   },
 ]
 
@@ -70,24 +58,15 @@ export default function DemoJoin() {
             </div>
             
             {FRIENDS_PREVIEW.map((friend, i) => (
-              <div key={i} style={{display:'flex',alignItems:'flex-start',gap:'12px',padding:'12px 0',borderBottom: i < FRIENDS_PREVIEW.length-1 ? '1px solid #f5f5f5' : 'none'}}>
-                <div style={{width:'44px',height:'44px',borderRadius:'50%',background:friend.avatar_color,color:friend.avatar_text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',fontWeight:'700',flexShrink:0,position:'relative',marginTop:'2px'}}>
+              <div key={i} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 0',borderBottom: i < FRIENDS_PREVIEW.length-1 ? '1px solid #f5f5f5' : 'none'}}>
+                <div style={{width:'44px',height:'44px',borderRadius:'50%',background:friend.avatar_color,color:friend.avatar_text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',fontWeight:'700',flexShrink:0,position:'relative'}}>
                   {friend.avatar_initial}
                   <div style={{position:'absolute',bottom:'-2px',right:'-2px',width:'12px',height:'12px',borderRadius:'50%',background:'#27500A',border:'2px solid #fff'}}/>
                 </div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:'14px',fontWeight:'700',color:'#111',marginBottom:'2px'}}>{friend.name}</div>
                   <div style={{fontSize:'12px',color:'#666',marginBottom:'2px'}}>{friend.activity}</div>
-                  <div style={{fontSize:'11px',color:'#888',marginBottom:'6px'}}>{friend.detail}</div>
-                  
-                  <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
-                    {friend.tags.map((tag, ti) => (
-                      <span key={ti} style={{fontSize:'10px',padding:'2px 8px',borderRadius:'10px',fontWeight:'600',background:tag.bg,color:tag.color,display:'inline-flex',alignItems:'center',gap:'3px'}}>
-                        <span>{tag.emoji}</span>
-                        <span>{tag.label}</span>
-                      </span>
-                    ))}
-                  </div>
+                  <div style={{fontSize:'11px',color:'#888'}}>{friend.detail}</div>
                 </div>
               </div>
             ))}

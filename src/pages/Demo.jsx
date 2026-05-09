@@ -24,6 +24,10 @@ const DEMO_FRIENDS = [
     platform: 'Steam',
     duration: '23 min',
     available: true,
+    tags: [
+      { label: 'Compétitif', emoji: '🎯', bg: '#EAF3DE', color: '#27500A' },
+      { label: 'Soirs', emoji: '🌆', bg: '#FFF3CC', color: '#7A5C00' },
+    ],
   },
   {
     id: 'friend-2',
@@ -36,6 +40,10 @@ const DEMO_FRIENDS = [
     platform: 'PS5',
     duration: null,
     available: true,
+    tags: [
+      { label: 'Coop', emoji: '🤝', bg: '#FFE8E8', color: '#A02050' },
+      { label: 'Weekends', emoji: '🎮', bg: '#E0F0FF', color: '#1F4D80' },
+    ],
   },
   {
     id: 'friend-3',
@@ -48,6 +56,10 @@ const DEMO_FRIENDS = [
     platform: 'Steam',
     duration: '1h 12 min',
     available: false,
+    tags: [
+      { label: 'Compétitif', emoji: '🎯', bg: '#EAF3DE', color: '#27500A' },
+      { label: 'Quotidien', emoji: '🔥', bg: '#FFE0E0', color: '#A02020' },
+    ],
   },
   {
     id: 'friend-4',
@@ -61,6 +73,10 @@ const DEMO_FRIENDS = [
     duration: null,
     available: false,
     last_seen: 'Hier 22h',
+    tags: [
+      { label: 'Casual', emoji: '🎮', bg: '#F0E8FF', color: '#5C2D91' },
+      { label: 'Weekends', emoji: '🎮', bg: '#E0F0FF', color: '#1F4D80' },
+    ],
   },
   {
     id: 'friend-5',
@@ -73,6 +89,10 @@ const DEMO_FRIENDS = [
     platform: 'PS5',
     duration: '47 min',
     available: true,
+    tags: [
+      { label: 'Solo', emoji: '🎬', bg: '#FFF0E0', color: '#8B4513' },
+      { label: 'Soirs', emoji: '🌆', bg: '#FFF3CC', color: '#7A5C00' },
+    ],
   },
 ]
 
@@ -122,9 +142,9 @@ export default function Demo() {
 
       {DEMO_FRIENDS.map(friend => (
         <div key={friend.id}
-          style={{background:'#fff',borderRadius:'14px',padding:'14px',marginBottom:'10px',border:'1px solid #eee',display:'flex',alignItems:'center',gap:'12px'}}>
+          style={{background:'#fff',borderRadius:'14px',padding:'14px',marginBottom:'10px',border:'1px solid #eee',display:'flex',alignItems:'flex-start',gap:'12px'}}>
           
-          <div style={{width:'48px',height:'48px',borderRadius:'50%',background:friend.avatar_color,color:friend.avatar_text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',fontWeight:'700',flexShrink:0,position:'relative'}}>
+          <div style={{width:'48px',height:'48px',borderRadius:'50%',background:friend.avatar_color,color:friend.avatar_text,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',fontWeight:'700',flexShrink:0,position:'relative',marginTop:'2px'}}>
             {friend.avatar_initial}
             {friend.status === 'playing' && <div style={{position:'absolute',bottom:'-2px',right:'-2px',width:'14px',height:'14px',borderRadius:'50%',background:'#27500A',border:'2px solid #fff'}}/>}
             {friend.status === 'looking' && <div style={{position:'absolute',bottom:'-2px',right:'-2px',width:'14px',height:'14px',borderRadius:'50%',background:'#FFB800',border:'2px solid #fff'}}/>}
@@ -142,7 +162,7 @@ export default function Demo() {
             <div style={{fontSize:'13px',color:'#666',marginBottom:'4px'}}>
               {friend.game ? friend.game : <em style={{color:'#aaa'}}>Hors ligne · {friend.last_seen}</em>}
             </div>
-            <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'6px',flexWrap:'wrap'}}>
               {friend.platform && PLATFORM_BADGE[friend.platform] && (
                 <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'10px',fontWeight:'600',background:PLATFORM_BADGE[friend.platform].bg,color:PLATFORM_BADGE[friend.platform].color}}>
                   {friend.platform}
@@ -152,10 +172,19 @@ export default function Demo() {
                 <span style={{fontSize:'11px',color:'#888'}}>· {friend.duration}</span>
               )}
             </div>
+            
+            <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
+              {friend.tags && friend.tags.map((tag, ti) => (
+                <span key={ti} style={{fontSize:'10px',padding:'2px 8px',borderRadius:'10px',fontWeight:'600',background:tag.bg,color:tag.color,display:'inline-flex',alignItems:'center',gap:'3px'}}>
+                  <span>{tag.emoji}</span>
+                  <span>{tag.label}</span>
+                </span>
+              ))}
+            </div>
           </div>
 
           {friend.available && (
-            <button style={{background:'#111',color:'#fff',border:'none',padding:'8px 14px',borderRadius:'20px',fontSize:'12px',fontWeight:'600',cursor:'pointer',fontFamily:'inherit'}}>
+            <button style={{background:'#111',color:'#fff',border:'none',padding:'8px 14px',borderRadius:'20px',fontSize:'12px',fontWeight:'600',cursor:'pointer',fontFamily:'inherit',flexShrink:0,marginTop:'4px'}}>
               Rejoindre
             </button>
           )}
@@ -244,6 +273,18 @@ export default function Demo() {
         </div>
         <div style={{fontSize:'18px',fontWeight:'700',color:'#111',marginBottom:'2px'}}>{DEMO_PROFILE.name}</div>
         <div style={{fontSize:'12px',color:'#888'}}>📱 {DEMO_PROFILE.phone}</div>
+        
+        <div style={{display:'flex',gap:'5px',justifyContent:'center',flexWrap:'wrap',marginTop:'12px'}}>
+          <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'10px',fontWeight:'600',background:'#EAF3DE',color:'#27500A'}}>
+            🎯 Compétitif
+          </span>
+          <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'10px',fontWeight:'600',background:'#FFF3CC',color:'#7A5C00'}}>
+            🌆 Soirs
+          </span>
+          <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'10px',fontWeight:'600',background:'#FFE0E0',color:'#A02020'}}>
+            🔥 Quotidien
+          </span>
+        </div>
       </div>
 
       <div style={{background:'#fff',borderRadius:'14px',padding:'4px',border:'1px solid #eee',marginBottom:'12px'}}>
